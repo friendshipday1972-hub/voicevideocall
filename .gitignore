@@ -1,0 +1,14 @@
+# Secrets: never commit. Each app documents its variables in .env.example.
+.env
+.env.*
+!.env.example
+
+# Local tooling
+.claude/
+.vscode/
+node_modules/
+.git-template-backup/
+
+# Planning documents kept outside the code repo
+App-Project-Guide-English.md
+hima-style-app-build-spec.md
