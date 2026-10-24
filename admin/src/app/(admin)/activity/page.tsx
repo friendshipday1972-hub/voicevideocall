@@ -6,8 +6,9 @@ import { useState } from 'react';
 import { ActivityFeed } from '@/components/feed';
 import { Ready } from '@/components/shell';
 import { Button, Card, DataTable, EmptyState, PageHeader, Pill, SearchInput, Select, Tabs, type Column } from '@/components/ui';
+import { useLang, useT } from '@/i18n';
 import { downloadCsv } from '@/lib/csv';
-import { formatDateTime } from '@/lib/data/derive';
+import { auditAction, formatDateTime } from '@/lib/data/derive';
 import { useAdmin } from '@/lib/data/store';
 import type { AuditEntry } from '@/lib/data/types';
 
@@ -15,28 +16,32 @@ const TYPES: AuditEntry['targetType'][] = ['user', 'host', 'application', 'repor
 
 function ActivityPageView() {
   const audit = useAdmin((s) => s.audit);
+  const t = useT();
+  const lang = useLang();
   const [tab, setTab] = useState<'audit' | 'live'>('audit');
   const [type, setType] = useState<'all' | AuditEntry['targetType']>('all');
   const [q, setQ] = useState('');
 
-  const rows = audit.filter((a) => (type === 'all' || a.targetType === type) && (!q.trim() || `${a.action} ${a.detail} ${a.actor} ${a.targetId}`.toLowerCase().includes(q.trim().toLowerCase())));
+  const actionText = (a: AuditEntry) => auditAction(t, a.action, a.vars);
+  const detailText = (a: AuditEntry) => (a.action === 'demoGenerated' && a.vars ? t('audit.demoGeneratedDetail', a.vars) : a.detail);
+  const rows = audit.filter((a) => (type === 'all' || a.targetType === type) && (!q.trim() || `${actionText(a)} ${a.detail} ${a.actor} ${a.targetId}`.toLowerCase().includes(q.trim().toLowerCase())));
 
   const columns: Column<AuditEntry>[] = [
-    { key: 'at', header: 'When', sort: (a) => a.at, cell: (a) => <span className="whitespace-nowrap text-fg-2">{formatDateTime(a.at)}</span> },
-    { key: 'actor', header: 'Admin', sort: (a) => a.actor, cell: (a) => <span className="font-medium">{a.actor}</span> },
-    { key: 'action', header: 'Action', sort: (a) => a.action, cell: (a) => a.action },
-    { key: 'type', header: 'On', cell: (a) => <Pill>{a.targetType}</Pill> },
-    { key: 'detail', header: 'Details', cell: (a) => <span className="text-fg-2">{a.detail}</span> },
+    { key: 'action', header: t('activity.action'), sort: (a) => actionText(a), cell: (a) => <span className="font-medium">{actionText(a)}</span> },
+    { key: 'at', header: t('common.when'), sort: (a) => a.at, cell: (a) => <span className="whitespace-nowrap text-fg-2">{formatDateTime(a.at, lang)}</span> },
+    { key: 'actor', header: t('activity.admin'), sort: (a) => a.actor, cell: (a) => <span className="break-all">{a.actor}</span> },
+    { key: 'type', header: t('activity.on'), cell: (a) => <Pill>{t(`activity.target.${a.targetType}`)}</Pill> },
+    { key: 'detail', header: t('common.details'), cell: (a) => <span className="text-fg-2">{detailText(a)}</span> },
   ];
 
   return (
     <>
       <PageHeader
-        title="Activity log"
-        description="Every admin action with who, what and why (append-only), plus a live feed of what users and hosts are doing."
+        title={t('activity.title')}
+        description={t('activity.description')}
         actions={
-          <Button icon={Download} onClick={() => downloadCsv('audit-log.csv', ['time', 'admin', 'action', 'target_type', 'target_id', 'detail'], audit.map((a) => [new Date(a.at).toISOString(), a.actor, a.action, a.targetType, a.targetId, a.detail]))}>
-            Export
+          <Button icon={Download} onClick={() => downloadCsv('audit-log.csv', ['time', 'admin', 'action', 'target_type', 'target_id', 'detail'], audit.map((a) => [new Date(a.at).toISOString(), a.actor, actionText(a), a.targetType, a.targetId, detailText(a)]))}>
+            {t('common.export')}
           </Button>
         }
       />
@@ -44,17 +49,17 @@ function ActivityPageView() {
         value={tab}
         onChange={setTab}
         tabs={[
-          { value: 'audit', label: 'Admin actions', count: audit.length },
-          { value: 'live', label: 'Platform activity' },
+          { value: 'audit', label: t('activity.adminActions'), count: audit.length },
+          { value: 'live', label: t('activity.platform') },
         ]}
       />
       {tab === 'audit' ? (
         <Card>
           <div className="flex flex-wrap gap-2 border-b border-line p-3">
-            <SearchInput value={q} onChange={setQ} placeholder="Search actions and details" />
-            <Select label="Type" value={type} onChange={setType} options={[{ value: 'all', label: 'Everything' }, ...TYPES.map((t) => ({ value: t, label: t[0].toUpperCase() + t.slice(1) }))]} />
+            <SearchInput value={q} onChange={setQ} placeholder={t('activity.search')} />
+            <Select label={t('activity.typeLabel')} value={type} onChange={setType} options={[{ value: 'all', label: t('activity.everything') }, ...TYPES.map((v) => ({ value: v, label: t(`activity.target.${v}`) }))]} />
           </div>
-          <DataTable rows={rows} columns={columns} rowKey={(a) => a.id} initialSort={{ key: 'at', dir: 'desc' }} pageSize={20} empty={<EmptyState icon={ShieldCheck} title="No admin actions yet" body="Approvals, bans, refunds and config changes will appear here." />} />
+          <DataTable rows={rows} columns={columns} rowKey={(a) => a.id} initialSort={{ key: 'at', dir: 'desc' }} pageSize={20} empty={<EmptyState icon={ShieldCheck} title={t('activity.empty')} body={t('activity.emptyBody')} />} />
         </Card>
       ) : (
         <Card>

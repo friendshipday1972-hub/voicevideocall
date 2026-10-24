@@ -22,8 +22,32 @@ npm run hash-password -- "a strong password"   # paste the output into ADMIN_PAS
 | Command | What it does |
 |---|---|
 | `npm run build && npm start` | Production build and server |
-| `npm test` | Spotlight Score engine tests |
+| `npm test` | Spotlight Score engine and translation tests |
 | `npm run typecheck` / `npm run lint` | Type and lint checks |
+
+## Deploy on Vercel
+
+1. In Vercel, import the GitHub repo and set **Root Directory** to `admin`. The framework is detected as Next.js; keep the default build settings.
+2. Under **Environment Variables**, add the three values from `.env.example`:
+   - `ADMIN_EMAIL`: the login email.
+   - `ADMIN_PASSWORD_HASH`: the output of `npm run hash-password -- "the password"`.
+   - `SESSION_SECRET`: 32+ random characters, from `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`.
+3. Deploy. The demo-login hint on the sign-in page only shows in development, never on Vercel.
+
+The demo data lives in each browser, so every admin who opens the site sees their own copy.
+
+## Languages
+
+The dashboard is in English and Telugu. Use the **EN / తెలుగు** switch on the sign-in page, in the top bar, or in the phone menu; the choice is remembered in that browser.
+
+- Strings live in `src/i18n/en.ts` (the source) and `src/i18n/te.ts`. TypeScript fails the build if Telugu is missing a key, and `npm test` checks placeholders and untranslated text.
+- Pages call `useT()`; helpers that build text (activity feed, time-ago) take `t` as an argument.
+- The audit log stores an action key plus values (`kycApproved`, `coinsAdded {n}`), so each entry shows in whichever language the admin picks. Names, reasons and review text stay as typed.
+- Have a native Telugu speaker review `te.ts` before launch.
+
+## Phones
+
+Every page works at phone width. Tables become stacked cards (the first column is the title, the rest are labelled values, row actions at the bottom), dialogs open as bottom sheets, and the theme toggle moves into the menu.
 
 ## Security
 

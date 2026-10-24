@@ -6,6 +6,8 @@ import Link from 'next/link';
 import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
 import { create } from 'zustand';
 
+import { useT } from '@/i18n';
+
 export const cx = clsx;
 
 /* ───────── Layout ───────── */
@@ -14,8 +16,8 @@ export function Card({ children, className, title, action, description }: { chil
   return (
     <section className={cx('rounded-xl border border-line bg-surface', className)}>
       {(title || action) && (
-        <header className="flex items-start justify-between gap-3 border-b border-line px-4 py-3">
-          <div>
+        <header className="flex flex-wrap items-start justify-between gap-x-3 gap-y-2 border-b border-line px-4 py-3">
+          <div className="min-w-0">
             {title && <h2 className="font-display text-[15px] font-semibold text-fg">{title}</h2>}
             {description && <p className="mt-0.5 text-xs text-fg-3">{description}</p>}
           </div>
@@ -31,10 +33,10 @@ export function PageHeader({ title, description, actions }: { title: string; des
   return (
     <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
       <div>
-        <h1 className="font-display text-2xl font-semibold tracking-tight text-fg">{title}</h1>
+        <h1 className="font-display text-xl font-semibold tracking-tight text-fg sm:text-2xl">{title}</h1>
         {description && <p className="mt-1 max-w-2xl text-sm text-fg-2">{description}</p>}
       </div>
-      {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
+      {actions && <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">{actions}</div>}
     </div>
   );
 }
@@ -113,24 +115,25 @@ export function Pill({ tone = 'neutral', icon: Icon, children, className }: { to
   );
 }
 
-export function Kpi({ label, value, delta, deltaLabel = 'vs yesterday', icon: Icon, href, tone, sub }: { label: string; value: string; delta?: number; deltaLabel?: string; icon: LucideIcon; href?: string; tone?: Tone; sub?: string }) {
+export function Kpi({ label, value, delta, deltaLabel, icon: Icon, href, tone, sub }: { label: string; value: string; delta?: number; deltaLabel?: string; icon: LucideIcon; href?: string; tone?: Tone; sub?: string }) {
+  const t = useT();
   const body = (
-    <div className={cx('h-full rounded-xl border border-line bg-surface p-4 transition-colors', href && 'hover:border-fg-3')}>
-      <div className="flex items-center justify-between gap-2">
-        <p className="text-xs font-medium text-fg-3">{label}</p>
-        <span className={cx('grid size-7 place-items-center rounded-lg', tone ? TONE[tone] : 'bg-surface-2 text-fg-2')}>
+    <div className={cx('h-full rounded-xl border border-line bg-surface p-3 transition-colors sm:p-4', href && 'hover:border-fg-3')}>
+      <div className="flex items-start justify-between gap-2">
+        <p className="min-w-0 text-xs font-medium text-fg-3">{label}</p>
+        <span className={cx('grid size-7 shrink-0 place-items-center rounded-lg', tone ? TONE[tone] : 'bg-surface-2 text-fg-2')}>
           <Icon className="size-3.5" aria-hidden />
         </span>
       </div>
-      <p className="tabular mt-2 font-display text-2xl font-semibold text-fg">{value}</p>
-      <div className="mt-1 flex min-h-4 items-center gap-1 text-xs">
+      <p className="tabular mt-2 break-words font-display text-xl font-semibold text-fg sm:text-2xl">{value}</p>
+      <div className="mt-1 flex min-h-4 flex-wrap items-center gap-1 text-xs">
         {delta !== undefined && Number.isFinite(delta) && (
           <span className={cx('inline-flex items-center gap-0.5 font-medium', delta >= 0 ? 'text-good' : 'text-bad')}>
             {delta >= 0 ? <ArrowUp className="size-3" aria-hidden /> : <ArrowDown className="size-3" aria-hidden />}
             {Math.abs(Math.round(delta * 100))}%
           </span>
         )}
-        <span className="text-fg-3">{delta !== undefined && Number.isFinite(delta) ? deltaLabel : sub}</span>
+        <span className="text-fg-3">{delta !== undefined && Number.isFinite(delta) ? (deltaLabel ?? t('common.vsYesterday')) : sub}</span>
       </div>
     </div>
   );
@@ -183,7 +186,7 @@ export function Select<T extends string>({ value, onChange, options, label }: { 
 
 export function Tabs<T extends string>({ value, onChange, tabs }: { value: T; onChange: (v: T) => void; tabs: { value: T; label: string; count?: number }[] }) {
   return (
-    <div role="tablist" className="mb-4 flex gap-1 overflow-x-auto border-b border-line">
+    <div role="tablist" className="-mx-4 mb-4 flex gap-1 overflow-x-auto border-b border-line px-4 sm:mx-0 sm:px-0">
       {tabs.map((t) => (
         <button
           key={t.value}
@@ -213,7 +216,12 @@ export type Column<T> = {
   className?: string;
 };
 
+/**
+ * Sortable, paged table. Below the md breakpoint each row becomes a card: the first column is the
+ * title, the other columns are labelled values, and header-less columns (row actions) sit at the bottom.
+ */
 export function DataTable<T>({ rows, columns, rowKey, onRowClick, pageSize = 15, empty, initialSort }: { rows: T[]; columns: Column<T>[]; rowKey: (r: T) => string; onRowClick?: (r: T) => void; pageSize?: number; empty?: ReactNode; initialSort?: { key: string; dir: 'asc' | 'desc' } }) {
+  const t = useT();
   const [sort, setSort] = useState(initialSort ?? null);
   const [page, setPage] = useState(0);
   const sorted = useMemo(() => {
@@ -233,9 +241,44 @@ export function DataTable<T>({ rows, columns, rowKey, onRowClick, pageSize = 15,
 
   if (rows.length === 0) return <>{empty}</>;
 
+  const [titleCol, ...restCols] = columns;
+  const fieldCols = restCols.filter((c) => c.header);
+  const actionCols = restCols.filter((c) => !c.header);
+
   return (
     <div>
-      <div className="overflow-x-auto">
+      <ul className="flex flex-col md:hidden">
+        {visible.map((r) => (
+          <li
+            key={rowKey(r)}
+            onClick={onRowClick ? () => onRowClick(r) : undefined}
+            onKeyDown={onRowClick ? (e) => e.key === 'Enter' && onRowClick(r) : undefined}
+            tabIndex={onRowClick ? 0 : undefined}
+            className={cx('flex flex-col gap-2.5 border-b border-line p-3 last:border-0', onRowClick && 'cursor-pointer active:bg-surface-2')}>
+            <div className="min-w-0 text-sm">{titleCol.cell(r)}</div>
+            {fieldCols.length > 0 && (
+              <dl className="grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
+                {fieldCols.map((c) => (
+                  <div key={c.key} className="min-w-0">
+                    <dt className="text-[11px] text-fg-3">{c.header}</dt>
+                    <dd className="tabular min-w-0 break-words">{c.cell(r)}</dd>
+                  </div>
+                ))}
+              </dl>
+            )}
+            {actionCols.length > 0 && (
+              <div className="flex flex-wrap justify-end gap-1 empty:hidden" onClick={(e) => e.stopPropagation()}>
+                {actionCols.map((c) => (
+                  <span key={c.key} className="contents">
+                    {c.cell(r)}
+                  </span>
+                ))}
+              </div>
+            )}
+          </li>
+        ))}
+      </ul>
+      <div className="hidden overflow-x-auto md:block">
         <table className="w-full border-collapse text-sm">
           <thead>
             <tr className="border-b border-line">
@@ -285,12 +328,10 @@ export function DataTable<T>({ rows, columns, rowKey, onRowClick, pageSize = 15,
       </div>
       {pages > 1 && (
         <div className="flex items-center justify-between gap-2 border-t border-line px-3 py-2 text-xs text-fg-3">
-          <span className="tabular">
-            {current * pageSize + 1}–{Math.min(sorted.length, (current + 1) * pageSize)} of {sorted.length}
-          </span>
+          <span className="tabular">{t('common.pageOf', { from: current * pageSize + 1, to: Math.min(sorted.length, (current + 1) * pageSize), total: sorted.length })}</span>
           <div className="flex gap-1">
-            <Button size="sm" variant="ghost" icon={ChevronLeft} disabled={current === 0} onClick={() => setPage(current - 1)} aria-label="Previous page" />
-            <Button size="sm" variant="ghost" icon={ChevronRight} disabled={current >= pages - 1} onClick={() => setPage(current + 1)} aria-label="Next page" />
+            <Button size="sm" variant="ghost" icon={ChevronLeft} disabled={current === 0} onClick={() => setPage(current - 1)} aria-label={t('common.previousPage')} />
+            <Button size="sm" variant="ghost" icon={ChevronRight} disabled={current >= pages - 1} onClick={() => setPage(current + 1)} aria-label={t('common.nextPage')} />
           </div>
         </div>
       )}
@@ -301,6 +342,7 @@ export function DataTable<T>({ rows, columns, rowKey, onRowClick, pageSize = 15,
 /* ───────── Modal & confirm ───────── */
 
 export function Modal({ open, onClose, title, children, footer, wide }: { open: boolean; onClose: () => void; title: string; children: ReactNode; footer?: ReactNode; wide?: boolean }) {
+  const t = useT();
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!open) return;
@@ -317,13 +359,13 @@ export function Modal({ open, onClose, title, children, footer, wide }: { open: 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center p-0 sm:items-center sm:p-4">
       <div className="absolute inset-0 bg-[var(--scrim)]" onClick={onClose} aria-hidden />
-      <div ref={ref} role="dialog" aria-modal="true" aria-label={title} className={cx('animate-in relative max-h-[90vh] w-full overflow-y-auto rounded-t-2xl border border-line bg-surface shadow-2xl sm:rounded-2xl', wide ? 'sm:max-w-2xl' : 'sm:max-w-md')}>
-        <div className="flex items-center justify-between border-b border-line px-5 py-3.5">
+      <div ref={ref} role="dialog" aria-modal="true" aria-label={title} className={cx('animate-in relative max-h-[90dvh] w-full overflow-y-auto rounded-t-2xl border border-line bg-surface shadow-2xl sm:rounded-2xl', wide ? 'sm:max-w-2xl' : 'sm:max-w-md')}>
+        <div className="flex items-center justify-between gap-3 border-b border-line px-4 py-3.5 sm:px-5">
           <h2 className="font-display text-base font-semibold">{title}</h2>
-          <Button variant="ghost" size="sm" icon={X} onClick={onClose} aria-label="Close" />
+          <Button variant="ghost" size="sm" icon={X} onClick={onClose} aria-label={t('common.close')} />
         </div>
-        <div className="px-5 py-4">{children}</div>
-        {footer && <div className="flex justify-end gap-2 border-t border-line px-5 py-3">{footer}</div>}
+        <div className="px-4 py-4 sm:px-5">{children}</div>
+        {footer && <div className="flex flex-wrap justify-end gap-2 border-t border-line px-4 py-3 sm:px-5">{footer}</div>}
       </div>
     </div>
   );
@@ -339,7 +381,7 @@ export function ConfirmAction({
   danger,
   onConfirm,
   reasonRequired = true,
-  placeholder = 'Reason (saved in the audit log)',
+  placeholder,
 }: {
   open: boolean;
   onClose: () => void;
@@ -351,6 +393,7 @@ export function ConfirmAction({
   reasonRequired?: boolean;
   placeholder?: string;
 }) {
+  const t = useT();
   const [reason, setReason] = useState('');
   const close = () => {
     setReason('');
@@ -365,7 +408,7 @@ export function ConfirmAction({
       footer={
         <>
           <Button variant="ghost" onClick={close}>
-            Cancel
+            {t('common.cancel')}
           </Button>
           <Button
             variant={danger ? 'danger' : 'primary'}
@@ -379,8 +422,8 @@ export function ConfirmAction({
         </>
       }>
       {body && <div className="mb-3 text-sm text-fg-2">{body}</div>}
-      <Field label={reasonRequired ? 'Reason (required)' : 'Note (optional)'}>
-        {(id) => <textarea id={id} value={reason} onChange={(e) => setReason(e.target.value)} placeholder={placeholder} rows={3} className={cx(inputClass, 'h-auto py-2')} />}
+      <Field label={reasonRequired ? t('common.reasonRequired') : t('common.noteOptional')}>
+        {(id) => <textarea id={id} value={reason} onChange={(e) => setReason(e.target.value)} placeholder={placeholder ?? t('common.reasonPlaceholder')} rows={3} className={cx(inputClass, 'h-auto py-2')} />}
       </Field>
     </Modal>
   );
@@ -406,17 +449,18 @@ export const toast = {
 };
 
 export function Toaster() {
+  const t = useT();
   const items = useToasts((s) => s.items);
   const remove = useToasts((s) => s.remove);
   return (
     <div aria-live="polite" className="pointer-events-none fixed inset-x-0 top-4 z-[60] flex flex-col items-center gap-2 px-4">
-      {items.map((t) => {
-        const Icon = t.tone === 'good' ? CheckCircle2 : t.tone === 'bad' ? XCircle : Info;
+      {items.map((item) => {
+        const Icon = item.tone === 'good' ? CheckCircle2 : item.tone === 'bad' ? XCircle : Info;
         return (
-          <div key={t.id} className="animate-in pointer-events-auto flex w-full max-w-md items-center gap-2.5 rounded-xl border border-line bg-surface px-4 py-3 text-sm shadow-lg">
-            <Icon className={cx('size-4 shrink-0', t.tone === 'good' ? 'text-good' : t.tone === 'bad' ? 'text-bad' : 'text-info')} aria-hidden />
-            <span className="flex-1">{t.text}</span>
-            <button className="cursor-pointer text-fg-3 hover:text-fg" onClick={() => remove(t.id)} aria-label="Dismiss">
+          <div key={item.id} className="animate-in pointer-events-auto flex w-full max-w-md items-center gap-2.5 rounded-xl border border-line bg-surface px-4 py-3 text-sm shadow-lg">
+            <Icon className={cx('size-4 shrink-0', item.tone === 'good' ? 'text-good' : item.tone === 'bad' ? 'text-bad' : 'text-info')} aria-hidden />
+            <span className="flex-1">{item.text}</span>
+            <button className="cursor-pointer text-fg-3 hover:text-fg" onClick={() => remove(item.id)} aria-label={t('common.dismiss')}>
               <X className="size-4" />
             </button>
           </div>

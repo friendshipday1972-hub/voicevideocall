@@ -5,6 +5,7 @@ import { useState } from 'react';
 
 import { Ready } from '@/components/shell';
 import { Button, Card, ConfirmAction, Field, PageHeader, Warning, inputClass, toast } from '@/components/ui';
+import { useT, type Translate } from '@/i18n';
 import { formatRupees } from '@/lib/data/derive';
 import { useAdmin } from '@/lib/data/store';
 import type { AppConfig } from '@/lib/data/types';
@@ -28,11 +29,11 @@ const toForm = (c: AppConfig): Form => ({
 });
 
 /** Validates the form; returns errors per field and the parsed config. */
-function parse(f: Form): { errors: Record<string, string>; config?: AppConfig } {
+function parse(f: Form, t: Translate): { errors: Record<string, string>; config?: AppConfig } {
   const errors: Record<string, string> = {};
   const num = (k: string, min: number, max: number, int = true) => {
     const v = Number(f[k]);
-    if (!Number.isFinite(v) || (int && !Number.isInteger(v)) || v < min || v > max) errors[k] = `Enter ${int ? 'a whole number' : 'a number'} from ${min} to ${max}.`;
+    if (!Number.isFinite(v) || (int && !Number.isInteger(v)) || v < min || v > max) errors[k] = t(int ? 'settings.errWhole' : 'settings.errNumber', { min, max });
     return v;
   };
   const coin = num('coinValue', 0.1, 5, false);
@@ -45,8 +46,8 @@ function parse(f: Form): { errors: Record<string, string>; config?: AppConfig } 
   const trial = num('trialCoins', 0, 100);
   const refund = num('refundUnder', 0, 60);
   const spot = num('spotlightMin', 0, 100);
-  if (video < audio && !errors.videoRate) errors.videoRate = 'Video should cost at least as much as voice.';
-  for (let i = 1; i < 4; i++) if (shares[i] < shares[i - 1] && !errors[`l${i + 1}`]) errors[`l${i + 1}`] = 'Higher levels should earn at least as much.';
+  if (video < audio && !errors.videoRate) errors.videoRate = t('settings.errVideo');
+  for (let i = 1; i < 4; i++) if (shares[i] < shares[i - 1] && !errors[`l${i + 1}`]) errors[`l${i + 1}`] = t('settings.errLevels');
   if (Object.keys(errors).length) return { errors };
   return {
     errors,
@@ -69,17 +70,19 @@ function SettingsPageView() {
   const config = useAdmin((s) => s.config);
   const updateConfig = useAdmin((s) => s.updateConfig);
   const resetDemo = useAdmin((s) => s.resetDemo);
+  const t = useT();
   const [form, setForm] = useState<Form>(() => toForm(config));
   const [submitted, setSubmitted] = useState(false);
   const [resetOpen, setResetOpen] = useState(false);
-  const { errors, config: parsed } = parse(form);
+  const { errors, config: parsed } = parse(form, t);
   const dirty = JSON.stringify(form) !== JSON.stringify(toForm(config));
 
+  const coins = t('common.coins');
   const input = (k: string, label: string, hint?: string, suffix?: string) => (
     <Field key={k} label={label} hint={hint} error={submitted ? errors[k] : null}>
       {(id) => (
         <div className="relative">
-          <input id={id} inputMode="decimal" value={form[k]} onChange={(e) => setForm({ ...form, [k]: e.target.value })} aria-invalid={submitted && !!errors[k]} className={`${inputClass} ${suffix ? 'pr-14' : ''}`} />
+          <input id={id} inputMode="decimal" value={form[k]} onChange={(e) => setForm({ ...form, [k]: e.target.value })} aria-invalid={submitted && !!errors[k]} className={`${inputClass} ${suffix ? 'pr-20' : ''}`} />
           {suffix && <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-fg-3">{suffix}</span>}
         </div>
       )}
@@ -89,13 +92,13 @@ function SettingsPageView() {
   const save = () => {
     setSubmitted(true);
     if (!parsed) {
-      toast.bad('Fix the highlighted fields');
+      toast.bad(t('settings.fixFields'));
       return;
     }
     const patch = Object.fromEntries(Object.entries(parsed).filter(([k, v]) => JSON.stringify(v) !== JSON.stringify(config[k as keyof AppConfig]))) as Partial<AppConfig>;
     updateConfig(patch);
     setSubmitted(false);
-    toast.good('Settings saved. The app picks them up on next launch.');
+    toast.good(t('settings.saved'));
   };
 
   const preview = parsed ?? config;
@@ -104,50 +107,50 @@ function SettingsPageView() {
   return (
     <>
       <PageHeader
-        title="App settings"
-        description="Rates, host shares and limits (the app_config table). Changes apply without an app update."
+        title={t('settings.title')}
+        description={t('settings.description')}
         actions={
           <Button variant="primary" icon={Save} disabled={!dirty} onClick={save}>
-            Save changes
+            {t('settings.saveChanges')}
           </Button>
         }
       />
       <div className="grid gap-4 xl:grid-cols-3">
         <div className="flex flex-col gap-4 xl:col-span-2">
-          <Card title="Coins & call rates">
+          <Card title={t('settings.coinsRates')}>
             <div className="grid gap-4 sm:grid-cols-3">
-              {input('coinValue', 'Coin value (host earnings base)', 'Base ₹ per coin', '₹')}
-              {input('audioRate', 'Voice call rate', 'Coins per minute', 'coins')}
-              {input('videoRate', 'Video call rate', 'Coins per minute', 'coins')}
+              {input('coinValue', t('settings.coinValue'), t('settings.coinValueHint'), '₹')}
+              {input('audioRate', t('settings.voiceRate'), t('settings.perMinute'), coins)}
+              {input('videoRate', t('settings.videoRate'), t('settings.perMinute'), coins)}
             </div>
           </Card>
-          <Card title="Host share by level" description="Percentage of the gross coin value of each minute">
-            <div className="grid gap-4 sm:grid-cols-4">
-              {input('l1', 'Level 1', undefined, '%')}
-              {input('l2', 'Level 2', undefined, '%')}
-              {input('l3', 'Level 3', undefined, '%')}
-              {input('l4', 'Level 4', undefined, '%')}
+          <Card title={t('settings.shareByLevel')} description={t('settings.shareDesc')}>
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+              {input('l1', t('common.levelN', { n: 1 }), undefined, '%')}
+              {input('l2', t('common.levelN', { n: 2 }), undefined, '%')}
+              {input('l3', t('common.levelN', { n: 3 }), undefined, '%')}
+              {input('l4', t('common.levelN', { n: 4 }), undefined, '%')}
             </div>
-            <div className="mt-4">{input('gift', 'Gift share', 'Host share of gift value', '%')}</div>
+            <div className="mt-4">{input('gift', t('settings.giftShare'), t('settings.giftShareHint'), '%')}</div>
           </Card>
-          <Card title="Wallet, payouts & safety">
+          <Card title={t('settings.walletSafety')}>
             <div className="grid gap-4 sm:grid-cols-3">
-              {input('minWithdrawal', 'Minimum withdrawal', undefined, '₹')}
-              {input('holdDays', 'Earnings hold', 'Refund / fraud window', 'days')}
-              {input('trialCoins', 'Welcome coins', 'Free coins for new callers', 'coins')}
-              {input('refundUnder', 'Auto-refund calls under', undefined, 'sec')}
-              {input('spotlightMin', 'Spotlight minimum score', 'Below this, hosts aren’t featured', 'pts')}
+              {input('minWithdrawal', t('settings.minWithdrawal'), undefined, '₹')}
+              {input('holdDays', t('settings.hold'), t('settings.holdHint'), t('settings.days'))}
+              {input('trialCoins', t('settings.welcome'), t('settings.welcomeHint'), coins)}
+              {input('refundUnder', t('settings.refundUnder'), undefined, t('settings.sec'))}
+              {input('spotlightMin', t('settings.spotlightMin'), t('settings.spotlightMinHint'), t('settings.pts'))}
             </div>
           </Card>
         </div>
         <div className="flex flex-col gap-4">
-          <Card title="What a host earns per minute" description="Preview with the values above">
+          <Card title={t('settings.earnPerMin')} description={t('settings.earnPerMinDesc')}>
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-xs text-fg-3">
-                  <th className="pb-2 text-left font-medium">Level</th>
-                  <th className="pb-2 text-right font-medium">Voice</th>
-                  <th className="pb-2 text-right font-medium">Video</th>
+                  <th className="pb-2 text-left font-medium">{t('common.level')}</th>
+                  <th className="pb-2 text-right font-medium">{t('common.voice')}</th>
+                  <th className="pb-2 text-right font-medium">{t('common.video')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -162,15 +165,13 @@ function SettingsPageView() {
                 ))}
               </tbody>
             </table>
-            <p className="mt-3 text-xs text-fg-3">
-              Callers pay {preview.audioRate} coins/min for voice and {preview.videoRate} for video.
-            </p>
+            <p className="mt-3 text-xs text-fg-3">{t('settings.callersPay', { voice: preview.audioRate, video: preview.videoRate })}</p>
           </Card>
-          <Warning>Big packs sell coins below the coin value (₹0.55 for Max). Check that Level 4 shares stay profitable for Max-pack buyers before raising them.</Warning>
-          <Card title="Demo data">
-            <p className="mb-3 text-sm text-fg-2">Start over with a fresh 30-day dataset. Your settings and all actions taken in this browser are cleared.</p>
+          <Warning>{t('settings.packWarning')}</Warning>
+          <Card title={t('settings.demo')}>
+            <p className="mb-3 text-sm text-fg-2">{t('settings.demoBody')}</p>
             <Button variant="danger" icon={RotateCcw} onClick={() => setResetOpen(true)}>
-              Reset demo data
+              {t('settings.resetDemo')}
             </Button>
           </Card>
         </div>
@@ -178,15 +179,15 @@ function SettingsPageView() {
       <ConfirmAction
         open={resetOpen}
         onClose={() => setResetOpen(false)}
-        title="Reset all demo data?"
-        body="Everything goes back to a fresh demo dataset."
-        confirmLabel="Reset"
+        title={t('settings.resetTitle')}
+        body={t('settings.resetBody')}
+        confirmLabel={t('settings.reset')}
         danger
         reasonRequired={false}
         onConfirm={() => {
           resetDemo();
           setForm(toForm(useAdmin.getState().config));
-          toast.good('Demo data reset');
+          toast.good(t('settings.resetToast'));
         }}
       />
     </>

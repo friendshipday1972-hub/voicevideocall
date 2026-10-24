@@ -4,6 +4,8 @@ import { Table2 } from 'lucide-react';
 import { useState, useSyncExternalStore, type ReactNode } from 'react';
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 
+import { useT } from '@/i18n';
+
 import { Card, cx } from './ui';
 
 /* Chart colors come from the theme tokens (SVG attributes can't resolve CSS variables), re-read when the theme changes. */
@@ -56,6 +58,7 @@ function ChartTooltip({ active, payload, label, format, unit }: { active?: boole
 
 /** Chart card with a table-view toggle (charts are never the only way to read the numbers). */
 function ChartCard({ title, description, data, xKey, yKey, format, unit, children, className }: { title: string; description?: string; data: Row[]; xKey: string; yKey: string; format: (v: number) => string; unit: string; children: ReactNode; className?: string }) {
+  const t = useT();
   const [table, setTable] = useState(false);
   return (
     <Card
@@ -65,7 +68,7 @@ function ChartCard({ title, description, data, xKey, yKey, format, unit, childre
       action={
         <button onClick={() => setTable((t) => !t)} aria-pressed={table} className={cx('inline-flex cursor-pointer items-center gap-1 rounded-md px-2 py-1 text-xs text-fg-3 hover:bg-surface-2 hover:text-fg', table && 'bg-surface-2 text-fg')}>
           <Table2 className="size-3.5" aria-hidden />
-          {table ? 'Chart' : 'Table'}
+          {table ? t('common.chart') : t('common.table')}
         </button>
       }>
       {table ? (
@@ -84,7 +87,7 @@ function ChartCard({ title, description, data, xKey, yKey, format, unit, childre
           </table>
         </div>
       ) : (
-        <div className="h-64" role="img" aria-label={`${title} chart. Use the Table button for exact values.`}>
+        <div className="h-64" role="img" aria-label={t('common.chartA11y', { title })}>
           {children}
         </div>
       )}

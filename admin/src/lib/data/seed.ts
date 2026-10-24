@@ -230,7 +230,7 @@ export function generateDataset(now: number): Dataset {
       severity: CATEGORY_SEVERITY[category],
       status: resolved ? 'actioned' : 'open',
       createdAt: now - hoursAgo * 3_600_000,
-      resolution: resolved ? 'Warning sent' : undefined,
+      decision: resolved ? 'warn' : undefined,
       resolvedAt: resolved ? now - (hoursAgo - 6) * 3_600_000 : undefined,
     };
   });
@@ -279,7 +279,7 @@ export function generateDataset(now: number): Dataset {
     };
   });
 
-  const audit: AuditEntry[] = [{ id: 'au0', at: now, actor: 'system', action: 'Demo data generated', targetType: 'system', targetId: '-', detail: `${users.length} callers, ${hosts.length} hosts, ${calls.length} calls` }];
+  const audit: AuditEntry[] = [{ id: 'au0', at: now, actor: 'system', action: 'demoGenerated', vars: { users: users.length, hosts: hosts.length, calls: calls.length }, targetType: 'system', targetId: '-', detail: '' }];
 
   return { generatedAt: now, users, hosts, applications, calls, purchases, payouts, reports, audit, config: DEFAULT_CONFIG };
 }

@@ -7,29 +7,31 @@ import { useMemo, useState } from 'react';
 import { ReportStatusPill, SeverityPill } from '@/components/status';
 import { Ready } from '@/components/shell';
 import { Avatar, Button, Card, EmptyState, Field, Modal, PageHeader, Pill, Tabs, cx, inputClass, toast } from '@/components/ui';
+import { useLang, useT, type Translate } from '@/i18n';
 import { formatDateTime, formatDuration, timeAgo } from '@/lib/data/derive';
 import { useAdmin } from '@/lib/data/store';
-import { REPORT_LABEL, type Report } from '@/lib/data/types';
+import type { Report, ReportDecision } from '@/lib/data/types';
 
 type Tab = 'open' | 'actioned' | 'dismissed';
-type Action = 'dismiss' | 'warn' | 'strike' | 'suspend' | 'ban';
 
 /** SLA (spec §9.4): sexual content and underage within 1 hour, everything else within 24 hours. */
 const slaMs = (r: Report) => (r.severity >= 3 ? 3_600_000 : 24 * 3_600_000);
 
-const ACTIONS: { value: Action; label: string; hint: string }[] = [
-  { value: 'dismiss', label: 'Dismiss', hint: 'No rule was broken.' },
-  { value: 'warn', label: 'Warn', hint: 'Send a warning. Severity 1.' },
-  { value: 'strike', label: 'Strike (hosts)', hint: 'Removes tier, −15% score. 3 strikes = ban.' },
-  { value: 'suspend', label: 'Suspend 7 days', hint: 'Can’t use the app; payouts held.' },
-  { value: 'ban', label: 'Ban permanently', hint: 'Underage, repeated sexual content, extortion.' },
-];
+const DECISIONS: ReportDecision[] = ['dismiss', 'warn', 'strike', 'suspend', 'ban'];
+
+/** "Warn: checked the call, first offence" in the admin's language; the note stays as typed. */
+function resolutionText(r: Report, t: Translate): string {
+  const label = r.decision ? t(`reports.action.${r.decision}`) : '';
+  return [label, r.resolution].filter(Boolean).join(': ');
+}
 
 function ReportsPageView() {
   const data = useAdmin();
+  const t = useT();
+  const lang = useLang();
   const [tab, setTab] = useState<Tab>('open');
   const [active, setActive] = useState<Report | null>(null);
-  const [action, setAction] = useState<Action>('warn');
+  const [action, setAction] = useState<ReportDecision>('warn');
   const [note, setNote] = useState('');
   const [refund, setRefund] = useState(true);
   const [now] = useState(() => Date.now());
@@ -54,19 +56,19 @@ function ReportsPageView() {
 
   return (
     <>
-      <PageHeader title="Reports" description="Safety queue, most serious first. Sexual-content and underage reports must be handled within 1 hour; everything else within 24 hours." />
+      <PageHeader title={t('reports.title')} description={t('reports.description')} />
       <Tabs
         value={tab}
         onChange={setTab}
         tabs={[
-          { value: 'open', label: 'Open', count: data.reports.filter((r) => r.status === 'open' || r.status === 'reviewing').length },
-          { value: 'actioned', label: 'Actioned', count: data.reports.filter((r) => r.status === 'actioned').length },
-          { value: 'dismissed', label: 'Dismissed', count: data.reports.filter((r) => r.status === 'dismissed').length },
+          { value: 'open', label: t('status.open'), count: data.reports.filter((r) => r.status === 'open' || r.status === 'reviewing').length },
+          { value: 'actioned', label: t('status.actioned'), count: data.reports.filter((r) => r.status === 'actioned').length },
+          { value: 'dismissed', label: t('status.dismissed'), count: data.reports.filter((r) => r.status === 'dismissed').length },
         ]}
       />
       <Card>
         {list.length === 0 ? (
-          <EmptyState icon={ShieldCheck} title={tab === 'open' ? 'Queue is clear' : 'Nothing here'} body={tab === 'open' ? 'New reports from callers and hosts appear here.' : undefined} />
+          <EmptyState icon={ShieldCheck} title={tab === 'open' ? t('reports.clear') : t('reports.nothing')} body={tab === 'open' ? t('reports.clearBody') : undefined} />
         ) : (
           <ul className="flex flex-col">
             {list.map((r) => {
@@ -78,10 +80,10 @@ function ReportsPageView() {
                     <Avatar name={name(r.targetId, r.targetRole)} colors={target?.colors} size={32} />
                     <span className="min-w-0 flex-1">
                       <span className="block text-sm">
-                        <span className="font-medium">{REPORT_LABEL[r.category]}</span>
-                        <span className="text-fg-3"> against {r.targetRole === 'host' ? 'host' : 'caller'} </span>
+                        <span className="font-medium">{t(`reportCat.${r.category}`)}</span>
+                        <span className="text-fg-3">{r.targetRole === 'host' ? t('reports.againstHost') : t('reports.againstCaller')}</span>
                         <span className="font-medium">{name(r.targetId, r.targetRole)}</span>
-                        <span className="text-fg-3"> · by {name(r.reporterId, r.reporterRole)}</span>
+                        <span className="text-fg-3">{t('reports.by', { name: name(r.reporterId, r.reporterRole) })}</span>
                       </span>
                       <span className="mt-0.5 block truncate text-xs text-fg-3">{r.details}</span>
                       <span className="mt-2 flex flex-wrap items-center gap-1.5">
@@ -89,11 +91,11 @@ function ReportsPageView() {
                         <ReportStatusPill status={r.status} />
                         {tab === 'open' ? (
                           <Pill tone={overdue ? 'bad' : 'neutral'} icon={AlarmClock}>
-                            {overdue ? 'SLA missed · ' : ''}
-                            {timeAgo(r.createdAt, now)}
+                            {overdue ? t('reports.slaMissed') : ''}
+                            {timeAgo(r.createdAt, now, t)}
                           </Pill>
                         ) : (
-                          <span className="text-xs text-fg-3">{r.resolution}</span>
+                          <span className="text-xs text-fg-3">{resolutionText(r, t)}</span>
                         )}
                       </span>
                     </span>
@@ -110,23 +112,22 @@ function ReportsPageView() {
           wide
           open
           onClose={() => setActive(null)}
-          title={`Report · ${REPORT_LABEL[active.category]}`}
+          title={t('reports.modalTitle', { category: t(`reportCat.${active.category}`) })}
           footer={
             active.status === 'open' || active.status === 'reviewing' ? (
               <>
                 <Button variant="ghost" onClick={() => setActive(null)}>
-                  Cancel
+                  {t('common.cancel')}
                 </Button>
                 <Button
                   variant={action === 'dismiss' ? 'secondary' : 'danger'}
                   disabled={note.trim().length < 3}
                   onClick={() => {
-                    const label = ACTIONS.find((a) => a.value === action)?.label ?? action;
-                    data.resolveReport(active.id, action === 'dismiss' ? 'dismissed' : 'actioned', `${label}: ${note.trim()}`, action === 'dismiss' ? undefined : action, action !== 'dismiss' && refund);
-                    toast.good(`Report ${action === 'dismiss' ? 'dismissed' : 'actioned'} and logged`);
+                    data.resolveReport(active.id, action, note.trim(), refund);
+                    toast.good(t('reports.loggedToast'));
                     setActive(null);
                   }}>
-                  Apply decision
+                  {t('reports.applyDecision')}
                 </Button>
               </>
             ) : undefined
@@ -135,40 +136,36 @@ function ReportsPageView() {
             <div className="flex flex-wrap gap-2">
               <SeverityPill severity={active.severity} />
               <ReportStatusPill status={active.status} />
-              <Pill>{formatDateTime(active.createdAt)}</Pill>
+              <Pill>{formatDateTime(active.createdAt, lang)}</Pill>
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="rounded-lg bg-surface-2 p-3">
-                <p className="text-xs text-fg-3">Reported {active.targetRole === 'host' ? 'host' : 'caller'}</p>
+                <p className="text-xs text-fg-3">{active.targetRole === 'host' ? t('reports.reportedHost') : t('reports.reportedCaller')}</p>
                 <Link href={`/${active.targetRole === 'host' ? 'hosts' : 'users'}/${active.targetId}`} className="font-medium hover:underline">
                   {name(active.targetId, active.targetRole)}
                 </Link>
-                <p className="text-xs text-fg-3">{history.length} other report{history.length === 1 ? '' : 's'} on record</p>
+                <p className="text-xs text-fg-3">{t('reports.otherReports', { n: history.length })}</p>
               </div>
               <div className="rounded-lg bg-surface-2 p-3">
-                <p className="text-xs text-fg-3">Reported by</p>
+                <p className="text-xs text-fg-3">{t('reports.reportedBy')}</p>
                 <p className="font-medium">{name(active.reporterId, active.reporterRole)}</p>
-                {call && (
-                  <p className="text-xs text-fg-3">
-                    {call.type === 'audio' ? 'Voice' : 'Video'} call · {formatDuration(call.durationSec)} · {call.coins} coins
-                  </p>
-                )}
+                {call && <p className="text-xs text-fg-3">{t('reports.callSummary', { type: t(call.type === 'audio' ? 'common.voice' : 'common.video'), dur: formatDuration(call.durationSec), coins: call.coins })}</p>}
               </div>
             </div>
             <blockquote className="rounded-lg border-l-4 border-bad bg-bad-soft/50 px-3 py-2 text-fg">“{active.details}”</blockquote>
-            <p className="text-xs text-fg-3">Video reports include a short snapshot taken at the time of the report (shown here once the backend and moderation API are connected).</p>
+            <p className="text-xs text-fg-3">{t('reports.snapshotNote')}</p>
 
             {active.status === 'open' || active.status === 'reviewing' ? (
               <>
                 <fieldset>
-                  <legend className="mb-2 text-xs font-medium text-fg-2">Decision</legend>
+                  <legend className="mb-2 text-xs font-medium text-fg-2">{t('reports.decision')}</legend>
                   <div className="grid gap-2 sm:grid-cols-2">
-                    {ACTIONS.filter((a) => a.value !== 'strike' || active.targetRole === 'host').map((a) => (
-                      <label key={a.value} className={cx('flex cursor-pointer gap-2 rounded-lg border p-2.5', action === a.value ? 'border-brand bg-brand-soft/40' : 'border-line hover:bg-surface-2')}>
-                        <input type="radio" name="action" value={a.value} checked={action === a.value} onChange={() => setAction(a.value)} className="mt-0.5 accent-[var(--brand)]" />
+                    {DECISIONS.filter((d) => d !== 'strike' || active.targetRole === 'host').map((d) => (
+                      <label key={d} className={cx('flex cursor-pointer gap-2 rounded-lg border p-2.5', action === d ? 'border-brand bg-brand-soft/40' : 'border-line hover:bg-surface-2')}>
+                        <input type="radio" name="action" value={d} checked={action === d} onChange={() => setAction(d)} className="mt-0.5 accent-[var(--brand)]" />
                         <span>
-                          <span className="block font-medium">{a.label}</span>
-                          <span className="block text-xs text-fg-3">{a.hint}</span>
+                          <span className="block font-medium">{t(`reports.action.${d}`)}</span>
+                          <span className="block text-xs text-fg-3">{t(`reports.actionHint.${d}`)}</span>
                         </span>
                       </label>
                     ))}
@@ -177,15 +174,15 @@ function ReportsPageView() {
                 {call && call.coins > 0 && action !== 'dismiss' && (
                   <label className="flex cursor-pointer items-center gap-2">
                     <input type="checkbox" checked={refund} onChange={(e) => setRefund(e.target.checked)} className="accent-[var(--brand)]" />
-                    Refund the caller for this call ({call.coins} coins)
+                    {t('reports.refundCaller', { n: call.coins })}
                   </label>
                 )}
-                <Field label="Note to the record (required)">{(id) => <textarea id={id} rows={2} value={note} onChange={(e) => setNote(e.target.value)} className={cx(inputClass, 'h-auto py-2')} placeholder="What you checked and why" />}</Field>
+                <Field label={t('reports.noteField')}>{(id) => <textarea id={id} rows={2} value={note} onChange={(e) => setNote(e.target.value)} className={cx(inputClass, 'h-auto py-2')} placeholder={t('reports.notePlaceholder')} />}</Field>
               </>
             ) : (
               <p>
-                <span className="text-fg-3">Resolution: </span>
-                {active.resolution}
+                <span className="text-fg-3">{t('reports.resolution')}</span>
+                {resolutionText(active, t)}
               </p>
             )}
           </div>
@@ -193,7 +190,7 @@ function ReportsPageView() {
       )}
       {tab === 'open' && list.length > 0 && (
         <p className="mt-3 flex items-center gap-1.5 text-xs text-fg-3">
-          <Flag className="size-3.5" aria-hidden /> Every decision is written to the activity log with your name.
+          <Flag className="size-3.5" aria-hidden /> {t('reports.footer')}
         </p>
       )}
     </>

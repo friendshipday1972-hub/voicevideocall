@@ -7,24 +7,35 @@ import { useMemo } from 'react';
 import { RiskPill, ScoreBar, TierPill } from '@/components/quality';
 import { Ready } from '@/components/shell';
 import { Avatar, Button, Card, DataTable, EmptyState, PageHeader, Pill, toast, type Column } from '@/components/ui';
+import { useT, type TKey } from '@/i18n';
 import { hostQuality } from '@/lib/data/derive';
 import { useAdmin } from '@/lib/data/store';
 import type { Host } from '@/lib/data/types';
-import { spotlightOrder, type QualityResult } from '@/lib/quality';
+import { spotlightOrder, type QualityFactor, type QualityResult } from '@/lib/quality';
 
 type Row = { id: string; h: Host; quality: QualityResult; featured: boolean };
 
-const WEIGHTS = [
-  ['Ratings', 35, 'Bayesian average: a new host starts at 4.0 with 20 “virtual” ratings, so 3 perfect reviews can’t beat 300 great ones.'],
-  ['Callers return', 20, 'Share of callers who call her again within 30 days. The strongest sign of a good impression.'],
-  ['Call length', 15, 'Average minutes per call (full marks at 12+).'],
-  ['Answers calls', 15, 'Answered ÷ rung while online. Declines and missed calls lower it.'],
-  ['Safety', 10, 'Upheld reports per call. 2% or more scores zero here.'],
-  ['Regularly online', 5, 'Days online in the last 30 (full marks at 20).'],
-] as const;
+const WEIGHTS: [QualityFactor['key'], number, TKey][] = [
+  ['rating', 35, 'spotlight.wRating'],
+  ['repeat', 20, 'spotlight.wRepeat'],
+  ['engagement', 15, 'spotlight.wEngagement'],
+  ['reliability', 15, 'spotlight.wReliability'],
+  ['safety', 10, 'spotlight.wSafety'],
+  ['consistency', 5, 'spotlight.wConsistency'],
+];
+
+const COLUMN_LABEL: Record<QualityFactor['key'], TKey> = {
+  rating: 'spotlight.colRatings',
+  repeat: 'spotlight.colReturn',
+  engagement: 'spotlight.colLength',
+  reliability: 'spotlight.colAnswers',
+  safety: 'spotlight.colSafety',
+  consistency: 'spotlight.colOnline',
+};
 
 function SpotlightPageView() {
   const data = useAdmin();
+  const t = useT();
   const rows: Row[] = useMemo(() => data.hosts.filter((h) => h.status === 'active').map((h) => ({ id: h.id, h, quality: hostQuality(h), featured: h.featured })), [data.hosts]);
   const preview = spotlightOrder(rows, 8, data.config.spotlightMinScore);
   const rising = rows.filter((r) => r.quality.tier === 'rising_star').sort((a, b) => b.quality.score - a.quality.score);
@@ -32,27 +43,27 @@ function SpotlightPageView() {
 
   const toggleFeature = (r: Row) => {
     data.setFeatured(r.id, !r.featured);
-    toast.good(r.featured ? `${r.h.name} removed from featured` : `${r.h.name} featured: +8 ranking boost`);
+    toast.good(r.featured ? t('spotlight.removedToast', { name: r.h.name }) : t('spotlight.featuredToast', { name: r.h.name }));
   };
 
   const columns: Column<Row>[] = [
     {
       key: 'name',
-      header: 'Host',
+      header: t('common.host'),
       sort: (r) => r.h.name,
       cell: ({ h, featured }) => (
         <Link href={`/hosts/${h.id}`} className="flex items-center gap-2.5 hover:underline">
           <Avatar name={h.name} colors={h.colors} size={30} />
           <span className="font-medium">{h.name}</span>
-          {featured && <Ribbon className="size-3.5 text-brand" aria-label="Featured" />}
+          {featured && <Ribbon className="size-3.5 text-brand" aria-label={t('common.featured')} />}
         </Link>
       ),
     },
-    { key: 'score', header: 'Score', sort: (r) => r.quality.score, cell: (r) => <ScoreBar score={r.quality.score} /> },
-    { key: 'tier', header: 'Tier', cell: (r) => (r.quality.atRisk ? <RiskPill /> : <TierPill tier={r.quality.tier} />) },
+    { key: 'score', header: t('host.score'), sort: (r) => r.quality.score, cell: (r) => <ScoreBar score={r.quality.score} /> },
+    { key: 'tier', header: t('common.tier'), cell: (r) => (r.quality.atRisk ? <RiskPill /> : <TierPill tier={r.quality.tier} />) },
     ...(['rating', 'repeat', 'engagement', 'reliability', 'safety', 'consistency'] as const).map((key) => ({
       key,
-      header: { rating: 'Ratings', repeat: 'Return', engagement: 'Length', reliability: 'Answers', safety: 'Safety', consistency: 'Online' }[key],
+      header: t(COLUMN_LABEL[key]),
       align: 'right' as const,
       sort: (r: Row) => r.quality.factors.find((f) => f.key === key)?.value ?? 0,
       cell: (r: Row) => {
@@ -67,7 +78,7 @@ function SpotlightPageView() {
       align: 'right',
       cell: (r) => (
         <Button size="sm" variant={r.featured ? 'secondary' : 'ghost'} icon={Ribbon} disabled={r.quality.atRisk && !r.featured} onClick={() => toggleFeature(r)}>
-          {r.featured ? 'Featured' : 'Feature'}
+          {r.featured ? t('common.featured') : t('common.feature')}
         </Button>
       ),
     },
@@ -75,12 +86,12 @@ function SpotlightPageView() {
 
   return (
     <>
-      <PageHeader title="Spotlight & rankings" description="Hosts who make the best impression are noticed automatically and shown first to callers. The score uses only behaviour that reflects good conversations, never looks." />
+      <PageHeader title={t('spotlight.title')} description={t('spotlight.description')} />
 
       <div className="grid gap-4 xl:grid-cols-5">
-        <Card className="xl:col-span-3" title="What callers see first" description="The “In the spotlight” row in the app. Every 4th slot goes to a rising star so new hosts get a fair chance.">
+        <Card className="xl:col-span-3" title={t('spotlight.seeFirst')} description={t('spotlight.seeFirstDesc')}>
           {preview.length === 0 ? (
-            <EmptyState icon={Sparkles} title="No hosts qualify yet" />
+            <EmptyState icon={Sparkles} title={t('spotlight.noneQualify')} />
           ) : (
             <ol className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               {preview.map((r, i) => (
@@ -90,8 +101,8 @@ function SpotlightPageView() {
                     <span className="font-display text-3xl font-semibold">{r.h.name[0]}</span>
                     <span className="text-sm font-medium">{r.h.name}</span>
                     <span className="rounded-full bg-black/30 px-2 py-0.5 text-[11px]">
-                      {r.quality.tier === 'rising_star' ? 'Rising star' : r.quality.tier === 'spotlight' ? 'Spotlight' : r.quality.tier === 'top_rated' ? 'Top rated' : `Score ${r.quality.score}`}
-                      {r.featured ? ' · Featured' : ''}
+                      {r.quality.tier === 'none' ? t('tier.score', { n: r.quality.score }) : t(`tier.${r.quality.tier}`)}
+                      {r.featured ? ` · ${t('common.featured')}` : ''}
                     </span>
                   </Link>
                 </li>
@@ -99,52 +110,60 @@ function SpotlightPageView() {
             </ol>
           )}
         </Card>
-        <Card className="xl:col-span-2" title="How the score works" description="0–100, recalculated nightly (live in this prototype)">
+        <Card className="xl:col-span-2" title={t('spotlight.howTitle')} description={t('spotlight.howDesc')}>
           <ul className="flex flex-col gap-2.5">
-            {WEIGHTS.map(([label, w, text]) => (
-              <li key={label} className="flex gap-3 text-sm">
+            {WEIGHTS.map(([key, w, text]) => (
+              <li key={key} className="flex gap-3 text-sm">
                 <span className="tabular w-9 shrink-0 font-display font-semibold text-data">{w}</span>
                 <span>
-                  <span className="font-medium">{label}</span>
-                  <span className="block text-xs text-fg-3">{text}</span>
+                  <span className="font-medium">{t(`factor.${key}`)}</span>
+                  <span className="block text-xs text-fg-3">{t(text)}</span>
                 </span>
               </li>
             ))}
           </ul>
           <div className="mt-3 grid gap-1.5 border-t border-line pt-3 text-xs text-fg-2">
-            <p className="flex items-center gap-1.5"><Sparkles className="size-3.5 text-gold" aria-hidden /> Spotlight: 85+ with 50+ calls a month</p>
-            <p className="flex items-center gap-1.5"><Ribbon className="size-3.5 text-info" aria-hidden /> Top rated: 72+ with 50+ calls a month</p>
-            <p className="flex items-center gap-1.5"><TrendingUp className="size-3.5 text-good" aria-hidden /> Rising star: new host (&lt;50 calls) scoring 68+</p>
-            <p className="flex items-center gap-1.5"><AlertTriangle className="size-3.5 text-bad" aria-hidden /> At risk: under 45, report rate over 1.5%, or 2+ strikes. Hidden from Spotlight.</p>
-            <p>Each strike removes the tier and cuts the score by 15%. Featured hosts get +8 in ranking.</p>
+            <p className="flex items-start gap-1.5">
+              <Sparkles className="mt-0.5 size-3.5 shrink-0 text-gold" aria-hidden /> {t('spotlight.ruleSpotlight')}
+            </p>
+            <p className="flex items-start gap-1.5">
+              <Ribbon className="mt-0.5 size-3.5 shrink-0 text-info" aria-hidden /> {t('spotlight.ruleTop')}
+            </p>
+            <p className="flex items-start gap-1.5">
+              <TrendingUp className="mt-0.5 size-3.5 shrink-0 text-good" aria-hidden /> {t('spotlight.ruleRising')}
+            </p>
+            <p className="flex items-start gap-1.5">
+              <AlertTriangle className="mt-0.5 size-3.5 shrink-0 text-bad" aria-hidden /> {t('spotlight.ruleRisk')}
+            </p>
+            <p>{t('spotlight.ruleStrike')}</p>
           </div>
         </Card>
       </div>
 
       <div className="mt-4 grid gap-4 lg:grid-cols-2">
-        <Card title="Rising stars" description="New hosts off to a great start. Consider featuring them.">
+        <Card title={t('spotlight.rising')} description={t('spotlight.risingDesc')}>
           {rising.length === 0 ? (
-            <EmptyState icon={TrendingUp} title="No rising stars right now" />
+            <EmptyState icon={TrendingUp} title={t('spotlight.noRising')} />
           ) : (
             <ul className="flex flex-col gap-2">
               {rising.map((r) => (
-                <li key={r.id} className="flex items-center gap-3 rounded-lg border border-line p-2.5">
+                <li key={r.id} className="flex flex-wrap items-center gap-3 rounded-lg border border-line p-2.5">
                   <Avatar name={r.h.name} colors={r.h.colors} />
-                  <Link href={`/hosts/${r.id}`} className="flex-1 text-sm font-medium hover:underline">
-                    {r.h.name} <span className="font-normal text-fg-3">· {r.h.stats.calls30d} calls · ★ {r.h.stats.ratingAvg.toFixed(1)}</span>
+                  <Link href={`/hosts/${r.id}`} className="min-w-0 flex-1 text-sm font-medium hover:underline">
+                    {r.h.name} <span className="block font-normal text-fg-3 sm:inline">· {t('spotlight.risingLine', { calls: r.h.stats.calls30d, rating: r.h.stats.ratingAvg.toFixed(1) })}</span>
                   </Link>
                   <ScoreBar score={r.quality.score} />
                   <Button size="sm" variant={r.featured ? 'secondary' : 'primary'} icon={Ribbon} onClick={() => toggleFeature(r)}>
-                    {r.featured ? 'Featured' : 'Feature'}
+                    {r.featured ? t('common.featured') : t('common.feature')}
                   </Button>
                 </li>
               ))}
             </ul>
           )}
         </Card>
-        <Card title="At risk" description="Low score or too many reports. Coach, warn or review.">
+        <Card title={t('spotlight.atRisk')} description={t('spotlight.atRiskDesc')}>
           {atRisk.length === 0 ? (
-            <EmptyState icon={AlertTriangle} title="Nobody at risk" />
+            <EmptyState icon={AlertTriangle} title={t('spotlight.nobodyAtRisk')} />
           ) : (
             <ul className="flex flex-col gap-2">
               {atRisk.map((r) => (
@@ -153,8 +172,8 @@ function SpotlightPageView() {
                   <Link href={`/hosts/${r.id}`} className="flex-1 text-sm font-medium hover:underline">
                     {r.h.name}
                   </Link>
-                  <Pill tone="bad">Reports {(r.h.stats.reportRate * 100).toFixed(1)}%</Pill>
-                  {r.h.strikes > 0 && <Pill tone="bad">{r.h.strikes} strikes</Pill>}
+                  <Pill tone="bad">{t('spotlight.reportsPct', { n: (r.h.stats.reportRate * 100).toFixed(1) })}</Pill>
+                  {r.h.strikes > 0 && <Pill tone="bad">{t('host.strikesN', { n: r.h.strikes })}</Pill>}
                   <ScoreBar score={r.quality.score} />
                 </li>
               ))}
@@ -163,7 +182,7 @@ function SpotlightPageView() {
         </Card>
       </div>
 
-      <Card className="mt-4" title="Leaderboard" description="Every factor as a percentage of its maximum. Under 50% is highlighted.">
+      <Card className="mt-4" title={t('spotlight.leaderboard')} description={t('spotlight.leaderboardDesc')}>
         <DataTable rows={rows} columns={columns} rowKey={(r) => r.id} initialSort={{ key: 'score', dir: 'desc' }} pageSize={20} />
       </Card>
     </>

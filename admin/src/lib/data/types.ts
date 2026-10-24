@@ -7,6 +7,7 @@ export type CallType = 'audio' | 'video';
 export type CallEndReason = 'caller_hangup' | 'host_hangup' | 'low_balance' | 'network' | 'moderation';
 export type ReportCategory = 'sexual_content' | 'harassment' | 'abuse' | 'fraud' | 'underage' | 'sharing_contacts' | 'spam' | 'other';
 export type ReportStatus = 'open' | 'reviewing' | 'actioned' | 'dismissed';
+export type ReportDecision = 'dismiss' | 'warn' | 'strike' | 'suspend' | 'ban';
 
 /** A caller (men and other genders). */
 export type User = {
@@ -126,6 +127,8 @@ export type Report = {
   severity: 1 | 2 | 3 | 4;
   status: ReportStatus;
   createdAt: number;
+  decision?: ReportDecision;
+  /** The admin's note on the decision (free text). */
   resolution?: string;
   resolvedAt?: number;
 };
@@ -134,9 +137,12 @@ export type AuditEntry = {
   id: string;
   at: number;
   actor: string;
+  /** An `audit.*` translation key (older entries may hold plain text, shown as is). */
   action: string;
+  vars?: Record<string, string | number>;
   targetType: 'user' | 'host' | 'application' | 'report' | 'payout' | 'purchase' | 'call' | 'review' | 'config' | 'system';
   targetId: string;
+  /** Names and the admin's reason, kept as typed. */
   detail: string;
 };
 
@@ -164,28 +170,6 @@ export type Dataset = {
   reports: Report[];
   audit: AuditEntry[];
   config: AppConfig;
-};
-
-export const LANGUAGE_LABEL: Record<LanguageCode, string> = {
-  hi: 'Hindi',
-  te: 'Telugu',
-  ta: 'Tamil',
-  kn: 'Kannada',
-  ml: 'Malayalam',
-  bn: 'Bengali',
-  mr: 'Marathi',
-  en: 'English',
-};
-
-export const REPORT_LABEL: Record<ReportCategory, string> = {
-  sexual_content: 'Sexual content',
-  harassment: 'Harassment',
-  abuse: 'Abusive language',
-  fraud: 'Fraud / money request',
-  underage: 'Possibly under 18',
-  sharing_contacts: 'Sharing contacts',
-  spam: 'Spam',
-  other: 'Other',
 };
 
 export const CATEGORY_SEVERITY: Record<ReportCategory, 1 | 2 | 3 | 4> = {

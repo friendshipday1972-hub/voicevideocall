@@ -6,31 +6,34 @@ import { useState } from 'react';
 
 import { Ready } from '@/components/shell';
 import { Avatar, Button, Card, ConfirmAction, EmptyState, PageHeader, Pill, Tabs, cx, toast } from '@/components/ui';
+import { useLang, useT, type Translate } from '@/i18n';
 import { formatDateTime, timeAgo } from '@/lib/data/derive';
 import { useAdmin } from '@/lib/data/store';
-import { LANGUAGE_LABEL, type Application } from '@/lib/data/types';
+import type { Application } from '@/lib/data/types';
 
-type Check = { label: string; ok: boolean; detail: string; blocking: boolean };
+type Check = { key: string; label: string; ok: boolean; detail: string; blocking: boolean };
 
 /** Automatic checks run on every application (provider results with the real KYC integration). */
-function checks(a: Application, hostNames: Map<string, string>): Check[] {
+function checks(a: Application, hostNames: Map<string, string>, t: Translate): Check[] {
   return [
-    { label: 'Woman (from Aadhaar)', ok: a.aadhaarGender === 'female', detail: `Aadhaar gender: ${a.aadhaarGender}`, blocking: true },
-    { label: '18 or older (from Aadhaar)', ok: a.aadhaarAge >= 18, detail: `Aadhaar age: ${a.aadhaarAge}${a.aadhaarAge !== a.age ? ` (said ${a.age})` : ''}`, blocking: true },
-    { label: 'Selfie matches ID photo', ok: a.faceMatch >= 90, detail: `${a.faceMatch}% match (90%+ required)`, blocking: false },
-    { label: 'Live person (liveness)', ok: a.livenessPassed, detail: a.livenessPassed ? 'Passed' : 'Failed: possible photo of a photo', blocking: false },
-    { label: 'Not a duplicate ID', ok: !a.duplicateOf, detail: a.duplicateOf ? `PAN/face resembles host ${hostNames.get(a.duplicateOf) ?? a.duplicateOf}` : 'No match with existing hosts', blocking: false },
+    { key: 'woman', label: t('apps.checkWoman'), ok: a.aadhaarGender === 'female', detail: t('apps.checkWomanDetail', { gender: t(a.aadhaarGender === 'female' ? 'apps.female' : 'apps.male') }), blocking: true },
+    { key: 'adult', label: t('apps.checkAdult'), ok: a.aadhaarAge >= 18, detail: t('apps.checkAdultDetail', { n: a.aadhaarAge }) + (a.aadhaarAge !== a.age ? t('apps.saidAge', { n: a.age }) : ''), blocking: true },
+    { key: 'face', label: t('apps.checkFace'), ok: a.faceMatch >= 90, detail: t('apps.checkFaceDetail', { n: a.faceMatch }), blocking: false },
+    { key: 'live', label: t('apps.checkLive'), ok: a.livenessPassed, detail: a.livenessPassed ? t('apps.livePassed') : t('apps.liveFailed'), blocking: false },
+    { key: 'dup', label: t('apps.checkDup'), ok: !a.duplicateOf, detail: a.duplicateOf ? t('apps.dupFound', { name: hostNames.get(a.duplicateOf) ?? a.duplicateOf }) : t('apps.dupNone'), blocking: false },
   ];
 }
 
-function recommendation(cs: Check[]): { tone: 'good' | 'warn' | 'bad'; text: string } {
-  if (cs.some((c) => c.blocking && !c.ok)) return { tone: 'bad', text: 'Reject: fails a mandatory requirement' };
-  if (cs.some((c) => !c.ok)) return { tone: 'warn', text: 'Review manually before approving' };
-  return { tone: 'good', text: 'All checks passed: safe to approve' };
+function recommendation(cs: Check[], t: Translate): { tone: 'good' | 'warn' | 'bad'; text: string } {
+  if (cs.some((c) => c.blocking && !c.ok)) return { tone: 'bad', text: t('apps.recReject') };
+  if (cs.some((c) => !c.ok)) return { tone: 'warn', text: t('apps.recReview') };
+  return { tone: 'good', text: t('apps.recApprove') };
 }
 
 function ApplicationsPageView() {
   const data = useAdmin();
+  const t = useT();
+  const lang = useLang();
   const [tab, setTab] = useState<Application['status']>('pending');
   const [action, setAction] = useState<{ app: Application; kind: 'approve' | 'reject' } | null>(null);
   const [now] = useState(() => Date.now());
@@ -39,25 +42,25 @@ function ApplicationsPageView() {
 
   return (
     <>
-      <PageHeader title="KYC approvals" description="Women who applied to become hosts. Nobody goes live without passing ID, age, gender and selfie checks plus your approval. Oldest first." />
+      <PageHeader title={t('apps.title')} description={t('apps.description')} />
       <Tabs
         value={tab}
         onChange={setTab}
         tabs={[
-          { value: 'pending', label: 'Waiting', count: data.applications.filter((a) => a.status === 'pending').length },
-          { value: 'approved', label: 'Approved', count: data.applications.filter((a) => a.status === 'approved').length },
-          { value: 'rejected', label: 'Rejected', count: data.applications.filter((a) => a.status === 'rejected').length },
+          { value: 'pending', label: t('apps.waiting'), count: data.applications.filter((a) => a.status === 'pending').length },
+          { value: 'approved', label: t('common.approved'), count: data.applications.filter((a) => a.status === 'approved').length },
+          { value: 'rejected', label: t('common.rejected'), count: data.applications.filter((a) => a.status === 'rejected').length },
         ]}
       />
       {list.length === 0 ? (
         <Card>
-          <EmptyState icon={BadgeCheck} title={tab === 'pending' ? 'All caught up' : 'Nothing here yet'} body={tab === 'pending' ? 'New applications will appear here.' : undefined} />
+          <EmptyState icon={BadgeCheck} title={tab === 'pending' ? t('apps.caughtUp') : t('apps.nothing')} body={tab === 'pending' ? t('apps.caughtUpBody') : undefined} />
         </Card>
       ) : (
         <div className="grid gap-4 xl:grid-cols-2">
           {list.map((a) => {
-            const cs = checks(a, hostNames);
-            const rec = recommendation(cs);
+            const cs = checks(a, hostNames, t);
+            const rec = recommendation(cs, t);
             const overdue = tab === 'pending' && now - a.submittedAt > 24 * 3_600_000;
             return (
               <Card key={a.id}>
@@ -69,17 +72,17 @@ function ApplicationsPageView() {
                         {a.name}, {a.age}
                       </p>
                       <p className="text-sm text-fg-3">
-                        {a.city} · {a.phone} · {a.languages.map((l) => LANGUAGE_LABEL[l]).join(', ')}
+                        {a.city} · {a.phone} · {a.languages.map((l) => t(`lang.${l}`)).join(', ')}
                       </p>
                     </div>
                     {tab === 'pending' ? (
                       <Pill tone={overdue ? 'bad' : 'neutral'} icon={Clock}>
-                        {overdue ? 'Over 24h · ' : ''}
-                        {timeAgo(a.submittedAt, now)}
+                        {overdue ? t('apps.overdue') : ''}
+                        {timeAgo(a.submittedAt, now, t)}
                       </Pill>
                     ) : (
                       <Pill tone={a.status === 'approved' ? 'good' : 'bad'} icon={a.status === 'approved' ? CheckCircle2 : XCircle}>
-                        {a.status === 'approved' ? 'Approved' : 'Rejected'} {a.decidedAt ? formatDateTime(a.decidedAt) : ''}
+                        {a.status === 'approved' ? t('common.approved') : t('common.rejected')} {a.decidedAt ? formatDateTime(a.decidedAt, lang) : ''}
                       </Pill>
                     )}
                   </div>
@@ -88,8 +91,8 @@ function ApplicationsPageView() {
 
                   <ul className="grid gap-1.5 sm:grid-cols-2">
                     {cs.map((c) => (
-                      <li key={c.label} className={cx('flex items-start gap-2 rounded-lg p-2 text-sm', c.ok ? 'bg-surface-2' : c.blocking ? 'bg-bad-soft' : 'bg-warn-soft')}>
-                        {c.ok ? <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-good" aria-label="Passed" /> : <XCircle className={cx('mt-0.5 size-4 shrink-0', c.blocking ? 'text-bad' : 'text-warn')} aria-label="Failed" />}
+                      <li key={c.key} className={cx('flex items-start gap-2 rounded-lg p-2 text-sm', c.ok ? 'bg-surface-2' : c.blocking ? 'bg-bad-soft' : 'bg-warn-soft')}>
+                        {c.ok ? <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-good" aria-label={t('apps.passed')} /> : <XCircle className={cx('mt-0.5 size-4 shrink-0', c.blocking ? 'text-bad' : 'text-warn')} aria-label={t('apps.failed')} />}
                         <span>
                           <span className="block font-medium">{c.label}</span>
                           <span className="block text-xs text-fg-2">{c.detail}</span>
@@ -100,35 +103,35 @@ function ApplicationsPageView() {
 
                   <div className="grid grid-cols-2 gap-2 text-xs text-fg-3 sm:grid-cols-3">
                     <span>
-                      PAN <span className="font-medium text-fg-2">{a.pan.slice(0, 2)}•••••{a.pan.slice(-2)}</span>
+                      {t('host.pan')} <span className="font-medium text-fg-2">{a.pan.slice(0, 2)}•••••{a.pan.slice(-2)}</span>
                     </span>
                     <span>
-                      Aadhaar <span className="font-medium text-fg-2">••••{a.aadhaarLast4}</span>
+                      {t('host.aadhaar')} <span className="font-medium text-fg-2">••••{a.aadhaarLast4}</span>
                     </span>
-                    <span>
-                      Payout <span className="font-medium text-fg-2">{a.payout}</span>
+                    <span className="col-span-2 break-all sm:col-span-1">
+                      {t('apps.payout')} <span className="font-medium text-fg-2">{a.payout}</span>
                     </span>
                   </div>
 
-                  {a.decisionNote && <p className="text-sm text-fg-2">Decision note: {a.decisionNote}</p>}
+                  {a.decisionNote && <p className="text-sm text-fg-2">{t('apps.decisionNote', { note: a.decisionNote })}</p>}
 
                   <div className="flex flex-wrap items-center gap-2 border-t border-line pt-3">
-                    <Pill tone={rec.tone} icon={rec.tone === 'good' ? ShieldCheck : ShieldAlert}>
+                    <Pill tone={rec.tone} icon={rec.tone === 'good' ? ShieldCheck : ShieldAlert} className="whitespace-normal">
                       {rec.text}
                     </Pill>
                     {tab === 'pending' && (
                       <div className="ml-auto flex gap-2">
                         <Button variant="ghost" icon={XCircle} onClick={() => setAction({ app: a, kind: 'reject' })}>
-                          Reject
+                          {t('common.reject')}
                         </Button>
-                        <Button variant="success" icon={CheckCircle2} disabled={rec.tone === 'bad'} title={rec.tone === 'bad' ? 'Fails a mandatory requirement' : undefined} onClick={() => setAction({ app: a, kind: 'approve' })}>
-                          Approve
+                        <Button variant="success" icon={CheckCircle2} disabled={rec.tone === 'bad'} title={rec.tone === 'bad' ? t('apps.failsMandatory') : undefined} onClick={() => setAction({ app: a, kind: 'approve' })}>
+                          {t('common.approve')}
                         </Button>
                       </div>
                     )}
                     {a.status === 'approved' && (
                       <Link href="/hosts" className="ml-auto text-xs font-medium text-brand hover:underline">
-                        View in hosts
+                        {t('apps.viewInHosts')}
                       </Link>
                     )}
                   </div>
@@ -143,19 +146,19 @@ function ApplicationsPageView() {
         <ConfirmAction
           open
           onClose={() => setAction(null)}
-          title={action.kind === 'approve' ? `Approve ${action.app.name} as a host?` : `Reject ${action.app.name}?`}
-          body={action.kind === 'approve' ? 'She can go online right away, starting at Level 1 (35% share). She’ll be told in the app.' : 'She’ll see the reason in the app and can re-apply with correct documents.'}
-          confirmLabel={action.kind === 'approve' ? 'Approve host' : 'Reject'}
+          title={action.kind === 'approve' ? t('apps.approveTitle', { name: action.app.name }) : t('apps.rejectTitle', { name: action.app.name })}
+          body={action.kind === 'approve' ? t('apps.approveBody') : t('apps.rejectBody')}
+          confirmLabel={action.kind === 'approve' ? t('apps.approveHost') : t('common.reject')}
           danger={action.kind === 'reject'}
           reasonRequired={action.kind === 'reject'}
-          placeholder={action.kind === 'approve' ? 'Optional note' : 'e.g. Selfie doesn’t match the ID photo'}
+          placeholder={action.kind === 'approve' ? t('apps.optionalNote') : t('apps.rejectPlaceholder')}
           onConfirm={(note) => {
             if (action.kind === 'approve') {
               data.approveApplication(action.app.id, note);
-              toast.good(`${action.app.name} approved. She can now go online.`);
+              toast.good(t('apps.approvedToast', { name: action.app.name }));
             } else {
               data.rejectApplication(action.app.id, note);
-              toast.info(`${action.app.name}'s application was rejected`);
+              toast.info(t('apps.rejectedToast', { name: action.app.name }));
             }
           }}
         />

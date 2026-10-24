@@ -5,7 +5,7 @@ import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
 import { generateDataset } from './seed';
-import type { AppConfig, AuditEntry, Dataset, HostStatus, ReportStatus, UserStatus } from './types';
+import type { AppConfig, AuditEntry, Dataset, HostStatus, ReportDecision, ReportStatus, UserStatus } from './types';
 
 /**
  * Admin data + actions. Prototype: the dataset lives in this browser (localStorage) and every
@@ -22,7 +22,7 @@ type Actions = {
   clearStrikes: (id: string, reason: string) => void;
   approveApplication: (id: string, note: string) => void;
   rejectApplication: (id: string, note: string) => void;
-  resolveReport: (id: string, status: ReportStatus, resolution: string, action?: 'warn' | 'strike' | 'suspend' | 'ban', refundCall?: boolean) => void;
+  resolveReport: (id: string, decision: ReportDecision, note: string, refundCall?: boolean) => void;
   setReviewHidden: (callId: string, hidden: boolean, reason: string) => void;
   refundCall: (callId: string, reason: string) => void;
   refundPurchase: (id: string, reason: string) => void;
@@ -38,8 +38,10 @@ let auditSeq = 0;
 export const useAdmin = create<AdminState>()(
   persist(
     (set, get) => {
-      const audit = (action: string, targetType: AuditEntry['targetType'], targetId: string, detail: string) =>
-        set((s) => ({ audit: [{ id: `au${Date.now()}${auditSeq++}`, at: Date.now(), actor: s.actor, action, targetType, targetId, detail }, ...s.audit].slice(0, 500) }));
+      // `action` is an `audit.*` key so the log reads in the admin's language; `detail` keeps names and reasons as typed.
+      const audit = (action: string, targetType: AuditEntry['targetType'], targetId: string, detail: string, vars?: AuditEntry['vars']) =>
+        set((s) => ({ audit: [{ id: `au${Date.now()}${auditSeq++}`, at: Date.now(), actor: s.actor, action, vars, targetType, targetId, detail }, ...s.audit].slice(0, 500) }));
+      const join = (...parts: (string | undefined)[]) => parts.filter(Boolean).join(' · ');
 
       const hostName = (id: string) => get().hosts.find((h) => h.id === id)?.name ?? id;
       const userName = (id: string) => get().users.find((u) => u.id === id)?.name ?? id;
@@ -51,31 +53,31 @@ export const useAdmin = create<AdminState>()(
 
         setUserStatus: (id, status, reason) => {
           set((s) => ({ users: s.users.map((u) => (u.id === id ? { ...u, status } : u)) }));
-          audit(status === 'active' ? 'Reactivated caller' : status === 'deleted' ? 'Deleted caller' : `${status === 'banned' ? 'Banned' : 'Suspended'} caller`, 'user', id, `${userName(id)} · ${reason}`);
+          audit({ active: 'userActive', suspended: 'userSuspended', banned: 'userBanned', deleted: 'userDeleted' }[status], 'user', id, join(userName(id), reason));
         },
         adjustCoins: (id, delta, reason) => {
           set((s) => ({ users: s.users.map((u) => (u.id === id ? { ...u, coins: Math.max(0, u.coins + delta) } : u)) }));
-          audit(delta >= 0 ? 'Added coins' : 'Removed coins', 'user', id, `${userName(id)} · ${delta > 0 ? '+' : ''}${delta} coins · ${reason}`);
+          audit(delta >= 0 ? 'coinsAdded' : 'coinsRemoved', 'user', id, join(userName(id), reason), { n: Math.abs(delta) });
         },
         setHostStatus: (id, status, reason) => {
           set((s) => ({ hosts: s.hosts.map((h) => (h.id === id ? { ...h, status, presence: status === 'active' ? h.presence : 'offline', featured: status === 'active' ? h.featured : false } : h)) }));
-          audit(status === 'active' ? 'Reactivated host' : `${status === 'banned' ? 'Banned' : 'Suspended'} host`, 'host', id, `${hostName(id)} · ${reason}`);
+          audit({ active: 'hostActive', suspended: 'hostSuspended', banned: 'hostBanned' }[status], 'host', id, join(hostName(id), reason));
         },
         setFeatured: (id, featured) => {
           set((s) => ({ hosts: s.hosts.map((h) => (h.id === id ? { ...h, featured } : h)) }));
-          audit(featured ? 'Featured host in Spotlight' : 'Removed Spotlight feature', 'host', id, hostName(id));
+          audit(featured ? 'featured' : 'unfeatured', 'host', id, hostName(id));
         },
         setLevelOverride: (id, level) => {
           set((s) => ({ hosts: s.hosts.map((h) => (h.id === id ? { ...h, levelOverride: level } : h)) }));
-          audit(level ? `Set level override to L${level}` : 'Cleared level override', 'host', id, hostName(id));
+          audit(level ? 'levelSet' : 'levelCleared', 'host', id, hostName(id), level ? { n: level } : undefined);
         },
         addStrike: (id, reason) => {
           set((s) => ({ hosts: s.hosts.map((h) => (h.id === id ? { ...h, strikes: h.strikes + 1 } : h)) }));
-          audit('Added strike', 'host', id, `${hostName(id)} · ${reason}`);
+          audit('strikeAdded', 'host', id, join(hostName(id), reason));
         },
         clearStrikes: (id, reason) => {
           set((s) => ({ hosts: s.hosts.map((h) => (h.id === id ? { ...h, strikes: 0 } : h)) }));
-          audit('Cleared strikes', 'host', id, `${hostName(id)} · ${reason}`);
+          audit('strikesCleared', 'host', id, join(hostName(id), reason));
         },
 
         approveApplication: (id, note) => {
@@ -109,32 +111,34 @@ export const useAdmin = create<AdminState>()(
               },
             ],
           }));
-          audit('Approved host KYC', 'application', id, `${app.name} · ${note || 'All checks passed'}`);
+          audit('kycApproved', 'application', id, join(app.name, note));
         },
         rejectApplication: (id, note) => {
           const app = get().applications.find((a) => a.id === id);
           set((s) => ({ applications: s.applications.map((a) => (a.id === id ? { ...a, status: 'rejected', decisionNote: note, decidedAt: Date.now() } : a)) }));
-          audit('Rejected host KYC', 'application', id, `${app?.name ?? id} · ${note}`);
+          audit('kycRejected', 'application', id, join(app?.name ?? id, note));
         },
 
-        resolveReport: (id, status, resolution, action, refundCall) => {
+        resolveReport: (id, decision, note, refundCall) => {
           const rep = get().reports.find((r) => r.id === id);
           if (!rep) return;
-          set((s) => ({ reports: s.reports.map((r) => (r.id === id ? { ...r, status, resolution, resolvedAt: status === 'open' || status === 'reviewing' ? undefined : Date.now() } : r)) }));
+          const status: ReportStatus = decision === 'dismiss' ? 'dismissed' : 'actioned';
+          set((s) => ({ reports: s.reports.map((r) => (r.id === id ? { ...r, status, decision, resolution: note, resolvedAt: Date.now() } : r)) }));
           const target = rep.targetRole === 'host' ? hostName(rep.targetId) : userName(rep.targetId);
-          audit(`Report ${status}`, 'report', id, `${target} · ${resolution}`);
-          if (action === 'strike' && rep.targetRole === 'host') get().addStrike(rep.targetId, `Report ${id}: ${resolution}`);
-          if (action === 'suspend' || action === 'ban') {
-            if (rep.targetRole === 'host') get().setHostStatus(rep.targetId, action === 'ban' ? 'banned' : 'suspended', `Report ${id}`);
-            else get().setUserStatus(rep.targetId, action === 'ban' ? 'banned' : 'suspended', `Report ${id}`);
+          const ref = `#${id}`;
+          audit(decision === 'dismiss' ? 'reportDismissed' : 'reportActioned', 'report', id, join(target, note));
+          if (decision === 'strike' && rep.targetRole === 'host') get().addStrike(rep.targetId, join(ref, note));
+          if (decision === 'suspend' || decision === 'ban') {
+            if (rep.targetRole === 'host') get().setHostStatus(rep.targetId, decision === 'ban' ? 'banned' : 'suspended', ref);
+            else get().setUserStatus(rep.targetId, decision === 'ban' ? 'banned' : 'suspended', ref);
           }
-          if (action === 'warn') audit('Sent warning', rep.targetRole, rep.targetId, `${target} · Report ${id}`);
-          if (refundCall && rep.callId) get().refundCall(rep.callId, `Report ${id}`);
+          if (decision === 'warn') audit('warningSent', rep.targetRole, rep.targetId, join(target, ref));
+          if (refundCall && rep.callId && decision !== 'dismiss') get().refundCall(rep.callId, ref);
         },
 
         setReviewHidden: (callId, hidden, reason) => {
           set((s) => ({ calls: s.calls.map((c) => (c.id === callId ? { ...c, reviewHidden: hidden } : c)) }));
-          audit(hidden ? 'Hid review' : 'Restored review', 'review', callId, reason);
+          audit(hidden ? 'reviewHidden' : 'reviewRestored', 'review', callId, reason);
         },
         refundCall: (callId, reason) => {
           const call = get().calls.find((c) => c.id === callId);
@@ -144,7 +148,7 @@ export const useAdmin = create<AdminState>()(
             calls: s.calls.map((c) => (c.id === callId ? { ...c, refundedCoins: c.refundedCoins + coins, coins: 0, hostEarnedPaise: 0 } : c)),
             users: s.users.map((u) => (u.id === call.userId ? { ...u, coins: u.coins + coins } : u)),
           }));
-          audit('Refunded call', 'call', callId, `${coins} coins to ${userName(call.userId)} · host earning clawed back · ${reason}`);
+          audit('callRefunded', 'call', callId, join(userName(call.userId), reason), { n: coins });
         },
         refundPurchase: (id, reason) => {
           const p = get().purchases.find((x) => x.id === id);
@@ -153,16 +157,16 @@ export const useAdmin = create<AdminState>()(
             purchases: s.purchases.map((x) => (x.id === id ? { ...x, status: 'refunded' } : x)),
             users: s.users.map((u) => (u.id === p.userId ? { ...u, coins: Math.max(0, u.coins - p.coins), spentPaise: Math.max(0, u.spentPaise - p.pricePaise) } : u)),
           }));
-          audit('Refunded purchase', 'purchase', id, `${userName(p.userId)} · ${p.pack} · ${reason}`);
+          audit('purchaseRefunded', 'purchase', id, join(userName(p.userId), p.pack, reason));
         },
         decidePayout: (id, status, note) => {
           const p = get().payouts.find((x) => x.id === id);
           set((s) => ({ payouts: s.payouts.map((x) => (x.id === id ? { ...x, status, note, decidedAt: Date.now() } : x)) }));
-          audit(status === 'approved' ? 'Approved payout' : status === 'paid' ? 'Marked payout paid' : 'Rejected payout', 'payout', id, `${p ? hostName(p.hostId) : id}${note ? ` · ${note}` : ''}`);
+          audit({ approved: 'payoutApproved', paid: 'payoutPaid', rejected: 'payoutRejected' }[status], 'payout', id, join(p ? hostName(p.hostId) : id, note));
         },
         updateConfig: (patch) => {
           set((s) => ({ config: { ...s.config, ...patch } }));
-          audit('Updated app config', 'config', 'app_config', Object.entries(patch).map(([k, v]) => `${k} = ${Array.isArray(v) ? v.join('/') : v}`).join(', '));
+          audit('configUpdated', 'config', 'app_config', Object.entries(patch).map(([k, v]) => `${k} = ${Array.isArray(v) ? v.join('/') : v}`).join(', '));
         },
         resetDemo: () => {
           set({ ...generateDataset(Date.now()) });
@@ -171,7 +175,9 @@ export const useAdmin = create<AdminState>()(
     },
     {
       name: 'baatein-admin',
-      version: 1,
+      // v2: audit actions and report decisions are stored as keys (translatable). Older demo data is regenerated.
+      version: 2,
+      migrate: (persisted, version) => (version < 2 ? generateDataset(Date.now()) : persisted) as AdminState,
       storage: createJSONStorage(() => localStorage),
       partialize: ({ generatedAt, users, hosts, applications, calls, purchases, payouts, reports, audit, config }) => ({ generatedAt, users, hosts, applications, calls, purchases, payouts, reports, audit, config }),
     },

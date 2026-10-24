@@ -1,7 +1,7 @@
+import { locale, translateMaybe, type Translate, type UiLang } from '@/i18n';
 import { computeQuality, type QualityResult } from '@/lib/quality';
 
-import type { Call, Dataset, Host } from './types';
-import { LANGUAGE_LABEL } from './types';
+import type { Call, Dataset, Host, LanguageCode } from './types';
 
 export const DAY = 86_400_000;
 
@@ -32,18 +32,22 @@ export function formatDuration(sec: number): string {
   return m >= 60 ? `${Math.floor(m / 60)}h ${m % 60}m` : `${m}:${String(s).padStart(2, '0')}`;
 }
 
-export function formatDateTime(ts: number): string {
-  return new Date(ts).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' });
+export function formatDateTime(ts: number, lang: UiLang): string {
+  return new Date(ts).toLocaleString(locale(lang), { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' });
 }
 
-export function timeAgo(ts: number, now: number): string {
+export function formatDate(ts: number, lang: UiLang, opts: Intl.DateTimeFormatOptions): string {
+  return new Date(ts).toLocaleDateString(locale(lang), opts);
+}
+
+export function timeAgo(ts: number, now: number, t: Translate): string {
   const s = Math.max(0, Math.round((now - ts) / 1000));
-  if (s < 60) return 'just now';
+  if (s < 60) return t('time.justNow');
   const m = Math.round(s / 60);
-  if (m < 60) return `${m}m ago`;
+  if (m < 60) return t('time.minutesAgo', { n: m });
   const h = Math.round(m / 60);
-  if (h < 24) return `${h}h ago`;
-  return `${Math.round(h / 24)}d ago`;
+  if (h < 24) return t('time.hoursAgo', { n: h });
+  return t('time.daysAgo', { n: Math.round(h / 24) });
 }
 
 const startOfDay = (ts: number) => new Date(ts).setHours(0, 0, 0, 0);
@@ -57,7 +61,7 @@ function platformNetPaise(c: Call, coinValuePaise: number): number {
   return Math.round(afterGst - c.hostEarnedPaise - infra);
 }
 
-export function overview(d: Dataset, now: number) {
+export function overview(d: Dataset, now: number, lang: UiLang) {
   const today = startOfDay(now);
   const yesterday = today - DAY;
   const inRange = (ts: number, from: number, to: number) => ts >= from && ts < to;
@@ -77,7 +81,7 @@ export function overview(d: Dataset, now: number) {
   const series = days.map((day) => {
     const calls = callsIn(day, day + DAY);
     return {
-      label: new Date(day).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }),
+      label: formatDate(day, lang, { day: 'numeric', month: 'short' }),
       revenue: revenue(day, day + DAY) / 100,
       calls: calls.length,
       minutes: Math.round(calls.reduce((a, c) => a + c.durationSec, 0) / 60),
@@ -90,7 +94,7 @@ export function overview(d: Dataset, now: number) {
 
   const langCounts = new Map<string, number>();
   for (const c of d.calls) langCounts.set(c.language, (langCounts.get(c.language) ?? 0) + 1);
-  const languages = [...langCounts.entries()].map(([code, calls]) => ({ label: LANGUAGE_LABEL[code as keyof typeof LANGUAGE_LABEL], calls })).sort((a, b) => b.calls - a.calls);
+  const languages = [...langCounts.entries()].map(([code, calls]) => ({ code: code as LanguageCode, calls })).sort((a, b) => b.calls - a.calls);
 
   const ratingDist = [5, 4, 3, 2, 1].map((stars) => ({ label: `${stars}★`, count: rated.filter((c) => c.rating === stars).length }));
 
@@ -101,10 +105,10 @@ export function overview(d: Dataset, now: number) {
   for (const c of d.calls) callCounts.set(c.userId, (callCounts.get(c.userId) ?? 0) + 1);
   const repeat = [...callCounts.values()].filter((n) => n >= 3).length;
   const funnel = [
-    { label: 'Signed up', value: signed },
-    { label: 'Bought coins', value: purchased },
-    { label: 'Made a call', value: called },
-    { label: 'Regulars (3+ calls)', value: repeat },
+    { key: 'funnelSigned' as const, value: signed },
+    { key: 'funnelBought' as const, value: purchased },
+    { key: 'funnelCalled' as const, value: called },
+    { key: 'funnelRegular' as const, value: repeat },
   ];
 
   const gross30 = revenue(today - 29 * DAY, now + 1);
@@ -144,28 +148,35 @@ export function overview(d: Dataset, now: number) {
 
 export type ActivityItem = { at: number; kind: 'call' | 'purchase' | 'kyc' | 'report' | 'admin' | 'review'; text: string; href?: string };
 
-/** Everything happening on the platform, newest first. */
-export function activityFeed(d: Dataset, limit = 40): ActivityItem[] {
+/** Translated audit action, e.g. "Approved host KYC". Entries from before translation show their stored text. */
+export function auditAction(t: Translate, action: string, vars?: Record<string, string | number>): string {
+  const key = `audit.${action}`;
+  const out = t(key as Parameters<Translate>[0], vars);
+  return out === key ? action : out;
+}
+
+/** Everything happening on the platform, newest first, in the admin's language. */
+export function activityFeed(d: Dataset, limit: number, t: Translate): ActivityItem[] {
   const user = new Map(d.users.map((u) => [u.id, u.name]));
   const host = new Map(d.hosts.map((h) => [h.id, h.name]));
   const items: ActivityItem[] = [
     ...d.calls.slice(0, 60).map((c) => ({
       at: c.startedAt + c.durationSec * 1000,
       kind: 'call' as const,
-      text: `${user.get(c.userId)} ↔ ${host.get(c.hostId)} · ${c.type} · ${formatDuration(c.durationSec)}${c.refundedCoins ? ' · auto-refunded' : ''}`,
+      text: t('feed.call', { user: user.get(c.userId) ?? '', host: host.get(c.hostId) ?? '', type: t(c.type === 'audio' ? 'common.voice' : 'common.video'), dur: formatDuration(c.durationSec) }) + (c.refundedCoins ? t('feed.autoRefunded') : ''),
       href: `/hosts/${c.hostId}`,
     })),
     ...d.calls
       .filter((c) => c.comment)
       .slice(0, 15)
-      .map((c) => ({ at: c.startedAt + c.durationSec * 1000 + 60_000, kind: 'review' as const, text: `${user.get(c.userId)} rated ${host.get(c.hostId)} ${c.rating}★: “${c.comment}”`, href: '/reviews' })),
+      .map((c) => ({ at: c.startedAt + c.durationSec * 1000 + 60_000, kind: 'review' as const, text: t('feed.review', { user: user.get(c.userId) ?? '', host: host.get(c.hostId) ?? '', stars: c.rating ?? 0, comment: c.comment ?? '' }), href: '/reviews' })),
     ...[...d.purchases]
       .sort((a, b) => b.createdAt - a.createdAt)
       .slice(0, 30)
-      .map((p) => ({ at: p.createdAt, kind: 'purchase' as const, text: `${user.get(p.userId)} bought ${p.pack} (${formatRupees(p.pricePaise)})${p.status === 'refunded' ? ' · refunded' : ''}`, href: '/payments' })),
-    ...d.applications.map((a) => ({ at: a.submittedAt, kind: 'kyc' as const, text: `${a.name} applied to host (${a.city})`, href: '/applications' })),
-    ...d.reports.map((r) => ({ at: r.createdAt, kind: 'report' as const, text: `New report against ${r.targetRole === 'host' ? host.get(r.targetId) : user.get(r.targetId)} · severity ${r.severity}`, href: '/reports' })),
-    ...d.audit.filter((a) => a.actor !== 'system').map((a) => ({ at: a.at, kind: 'admin' as const, text: `${a.actor}: ${a.action} · ${a.detail}`, href: '/activity' })),
+      .map((p) => ({ at: p.createdAt, kind: 'purchase' as const, text: t('feed.purchase', { user: user.get(p.userId) ?? '', pack: translateMaybe(t, 'packName', p.pack), amount: formatRupees(p.pricePaise) }) + (p.status === 'refunded' ? t('feed.purchaseRefunded') : ''), href: '/payments' })),
+    ...d.applications.map((a) => ({ at: a.submittedAt, kind: 'kyc' as const, text: t('feed.kycApplied', { name: a.name, city: a.city }), href: '/applications' })),
+    ...d.reports.map((r) => ({ at: r.createdAt, kind: 'report' as const, text: t('feed.report', { target: (r.targetRole === 'host' ? host.get(r.targetId) : user.get(r.targetId)) ?? '', n: r.severity }), href: '/reports' })),
+    ...d.audit.filter((a) => a.actor !== 'system').map((a) => ({ at: a.at, kind: 'admin' as const, text: t('feed.admin', { actor: a.actor, action: auditAction(t, a.action, a.vars), detail: a.detail }), href: '/activity' })),
   ];
   return items.sort((a, b) => b.at - a.at).slice(0, limit);
 }
