@@ -12,3 +12,6 @@ node_modules/
 # Planning documents kept outside the code repo
 App-Project-Guide-English.md
 hima-style-app-build-spec.md
+
+# Build output
+.next/

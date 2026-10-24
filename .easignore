@@ -1,0 +1,14 @@
+# What EAS Build uploads. When this file exists EAS uses it instead of .gitignore.
+# Only mobile/ is needed to build the app.
+admin/
+.claude/
+.vscode/
+**/node_modules/
+**/.git-template-backup/
+**/.expo/
+**/dist/
+.env
+.env.*
+!.env.example
+App-Project-Guide-English.md
+hima-style-app-build-spec.md
