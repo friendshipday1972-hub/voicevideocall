@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Baatein",
-    "slug": "baatein",
+    "slug": "friendship",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -51,6 +51,16 @@
     "backgroundColor": "#FFF7F8",
     "runtimeVersion": {
       "policy": "appVersion"
+    },
+    "owner": "friendshipchattings-team",
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "96c4bec4-f4a2-4e78-8007-57f38194f557"
+      }
+    },
+    "updates": {
+      "url": "https://u.expo.dev/96c4bec4-f4a2-4e78-8007-57f38194f557"
     }
   }
 }
