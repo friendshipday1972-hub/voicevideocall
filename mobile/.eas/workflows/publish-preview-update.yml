@@ -1,0 +1,14 @@
+# Every push to main ships the latest JS to installed preview builds over the air.
+# A new APK is only needed when native code or app.json's version changes.
+name: Publish preview update
+
+on:
+  push:
+    branches: ['main']
+
+jobs:
+  publish_preview_update:
+    name: Publish preview update
+    type: update
+    params:
+      channel: preview

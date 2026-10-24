@@ -8,7 +8,8 @@
     "scheme": "baatein",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./assets/expo.icon"
+      "icon": "./assets/expo.icon",
+      "bundleIdentifier": "app.baatein"
     },
     "android": {
       "adaptiveIcon": {
@@ -17,7 +18,8 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "app.baatein"
     },
     "web": {
       "output": "single",
@@ -46,6 +48,9 @@
       "typedRoutes": true,
       "reactCompiler": true
     },
-    "backgroundColor": "#FFF7F8"
+    "backgroundColor": "#FFF7F8",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    }
   }
 }

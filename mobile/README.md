@@ -70,6 +70,12 @@ The whole interface is available in English, हिन्दी, తెలుగ
 - **Adding or changing text:** strings live in `src/i18n/locales/*.ts`. Add the key to `en.ts` first; TypeScript then requires it in every language, and `npm test` checks that `{placeholders}` match.
 - **Before launch:** the translations were machine-drafted with care. Have a native speaker review each language.
 
+## Releasing to testers
+
+- **Installable app:** `eas build --profile preview --platform android` produces an APK with an install link. It only needs rebuilding when native code or `version` in `app.json` changes.
+- **Over-the-air updates:** every push to `main` runs [.eas/workflows/publish-preview-update.yml](.eas/workflows/publish-preview-update.yml), which publishes the new JavaScript to the `preview` channel. Testers get it the next time they reopen the app (close it fully and open it twice if it doesn't appear).
+- **Manual update:** `eas update --channel preview --message "what changed"`.
+
 ## Admin dashboard
 
 The web admin lives in [`../admin`](../admin/README.md) (Next.js). It runs on its own demo dataset with the same 12 hosts and Spotlight scores; the two connect through Supabase in the backend stage.
