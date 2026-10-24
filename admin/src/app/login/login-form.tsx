@@ -9,7 +9,7 @@ import { inputClass } from '@/components/ui';
 import { useT } from '@/i18n';
 
 /** The whole sign-in screen is client-rendered so it follows the chosen language (switch in the top corner). */
-export function LoginScreen({ showDemoHint }: { showDemoHint: boolean }) {
+export function LoginScreen() {
   const t = useT();
   return (
     <main className="grid min-h-dvh lg:grid-cols-2">
@@ -33,14 +33,14 @@ export function LoginScreen({ showDemoHint }: { showDemoHint: boolean }) {
           </div>
           <h2 className="font-display text-2xl font-semibold">{t('login.title')}</h2>
           <p className="mt-1 text-sm text-fg-2">{t('login.subtitle')}</p>
-          <LoginForm showDemoHint={showDemoHint} />
+          <LoginForm />
         </div>
       </section>
     </main>
   );
 }
 
-function LoginForm({ showDemoHint }: { showDemoHint: boolean }) {
+function LoginForm() {
   const t = useT();
   const [state, action, pending] = useActionState<LoginState, FormData>(login, undefined);
   const [show, setShow] = useState(false);
@@ -51,7 +51,7 @@ function LoginForm({ showDemoHint }: { showDemoHint: boolean }) {
         <label htmlFor="email" className="text-xs font-medium text-fg-2">
           {t('login.email')}
         </label>
-        <input id="email" name="email" type="email" autoComplete="username" required defaultValue={state?.email} className={`${inputClass} h-11`} placeholder="you@company.com" aria-invalid={!!state?.error} />
+        <input id="email" name="email" type="text" autoComplete="username" required defaultValue={state?.email} className={`${inputClass} h-11`} placeholder="you@company.com" aria-invalid={!!state?.error} />
       </div>
       <div className="flex flex-col gap-1.5">
         <label htmlFor="password" className="text-xs font-medium text-fg-2">
@@ -73,7 +73,6 @@ function LoginForm({ showDemoHint }: { showDemoHint: boolean }) {
         {pending ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Lock className="size-4" aria-hidden />}
         {pending ? t('login.submitting') : t('login.submit')}
       </button>
-      {showDemoHint && <p className="rounded-lg border border-dashed border-line px-3 py-2 text-xs text-fg-3">{t('login.demoHint', { email: 'admin@baatein.app', password: 'Baatein@2026' })}</p>}
     </form>
   );
 }

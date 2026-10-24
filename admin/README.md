@@ -9,15 +9,7 @@ npm install
 npm run dev            # http://localhost:3000
 ```
 
-Sign in with the credentials in `.env.local`. The dev demo login is **admin@baatein.app** / **Baatein@2026**.
-
-To set your own login:
-
-```bash
-npm run hash-password -- "a strong password"   # paste the output into ADMIN_PASSWORD_HASH
-```
-
-`.env.example` lists every variable. `SESSION_SECRET` must be 32+ random characters and stay private. `.env.local` is git-ignored.
+Sign in with **any email and password**. This prototype holds only demo data, so there is no account setup. Anyone with the link can open it.
 
 | Command | What it does |
 |---|---|
@@ -28,11 +20,7 @@ npm run hash-password -- "a strong password"   # paste the output into ADMIN_PAS
 ## Deploy on Vercel
 
 1. In Vercel, import the GitHub repo and set **Root Directory** to `admin`. The framework is detected as Next.js; keep the default build settings.
-2. Under **Environment Variables**, add the three values from `.env.example`:
-   - `ADMIN_EMAIL`: the login email.
-   - `ADMIN_PASSWORD_HASH`: the output of `npm run hash-password -- "the password"`.
-   - `SESSION_SECRET`: 32+ random characters, from `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`.
-3. Deploy. The demo-login hint on the sign-in page only shows in development, never on Vercel.
+2. Deploy. No environment variables are needed.
 
 The demo data lives in each browser, so every admin who opens the site sees their own copy.
 
@@ -51,13 +39,10 @@ Every page works at phone width. Tables become stacked cards (the first column i
 
 ## Security
 
-- **Proxy gate:** `src/proxy.ts` redirects every page except `/login` when there is no valid session.
-- **Server check:** the server re-verifies the session (`getCurrentAdmin`, the Data Access Layer) behind a Suspense boundary.
-- **Session cookie:** a signed JWT (HS256, 8 hours), `httpOnly`, `sameSite=lax`, and `secure` in production.
-- **Passwords:** stored as scrypt hashes and compared in constant time. Error messages don't reveal whether the email exists.
-- **Brute-force guard:** 5 failed attempts locks that email for 15 minutes. This is in-memory, so it resets on restart; use Redis/Upstash in production.
-- **Audit log:** every action asks for a reason and writes an entry to the Activity log.
-- **Still to add:** 2FA and multiple admin roles (moderator vs super admin) come with the backend stage.
+- **Prototype sign-in:** any email and password opens the dashboard (`src/app/actions/auth.ts`). Bring back a real credential check before connecting real data.
+- **Proxy gate:** `src/proxy.ts` still sends anyone without a session to `/login`, and the server re-checks the session (`getCurrentAdmin`).
+- **Session cookie:** a signed JWT (HS256, 8 hours), `httpOnly`, `sameSite=lax`, `secure` in production. It uses `SESSION_SECRET` when set, otherwise a built-in demo secret.
+- **Audit log:** every action asks for a reason and writes an entry to the Activity log, under the email used to sign in.
 
 ## Data (prototype stage)
 

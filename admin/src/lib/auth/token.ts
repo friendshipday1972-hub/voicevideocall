@@ -5,10 +5,12 @@ export const SESSION_COOKIE = 'admin_session';
 
 export type AdminSession = { email: string; role: 'admin' };
 
+/** Prototype fallback so the dashboard deploys with no setup; set SESSION_SECRET once real data is connected. */
+const DEMO_SECRET = 'baatein-admin-demo-session-secret-not-for-real-data';
+
 export function sessionKey(): Uint8Array {
   const secret = process.env.SESSION_SECRET;
-  if (!secret || secret.length < 32) throw new Error('SESSION_SECRET must be set (32+ characters). See .env.example.');
-  return new TextEncoder().encode(secret);
+  return new TextEncoder().encode(secret && secret.length >= 32 ? secret : DEMO_SECRET);
 }
 
 export async function isValidSession(token: string | undefined): Promise<boolean> {

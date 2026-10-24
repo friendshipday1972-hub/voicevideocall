@@ -7,7 +7,6 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "hash-password": "node scripts/hash-password.mjs",
     "typecheck": "tsc --noEmit",
     "test": "node --test tests/quality.test.ts tests/i18n.test.ts"
   },
