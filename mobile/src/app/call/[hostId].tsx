@@ -177,6 +177,17 @@ export default function CallScreen() {
     }
   }, [call, showSummary]);
 
+  // Safety net while ringing: if she answers before the live subscription is ready (or the
+  // network hiccups), a quick re-read still picks up her answer.
+  useEffect(() => {
+    if (phase !== 'ringing' || !sessionId.current) return;
+    const id = sessionId.current;
+    const timer = setInterval(() => {
+      fetchCall(id).then((row) => row && setCall((prev) => (prev && prev.state === row.state && prev.coinsCharged === row.coinsCharged ? prev : { ...prev, ...row })));
+    }, 3000);
+    return () => clearInterval(timer);
+  }, [phase]);
+
   // Ring timeout: she didn't answer.
   useEffect(() => {
     if (phase !== 'ringing') return;

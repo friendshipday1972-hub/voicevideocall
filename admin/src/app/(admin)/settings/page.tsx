@@ -1,10 +1,10 @@
 'use client';
 
-import { RotateCcw, Save } from 'lucide-react';
+import { Save } from 'lucide-react';
 import { useState } from 'react';
 
 import { Ready } from '@/components/shell';
-import { Button, Card, ConfirmAction, Field, PageHeader, Warning, inputClass, toast } from '@/components/ui';
+import { Button, Card, Field, PageHeader, Warning, inputClass, toast } from '@/components/ui';
 import { useT, type Translate } from '@/i18n';
 import { formatRupees } from '@/lib/data/derive';
 import { useAdmin } from '@/lib/data/store';
@@ -69,11 +69,9 @@ function parse(f: Form, t: Translate): { errors: Record<string, string>; config?
 function SettingsPageView() {
   const config = useAdmin((s) => s.config);
   const updateConfig = useAdmin((s) => s.updateConfig);
-  const resetDemo = useAdmin((s) => s.resetDemo);
   const t = useT();
   const [form, setForm] = useState<Form>(() => toForm(config));
   const [submitted, setSubmitted] = useState(false);
-  const [resetOpen, setResetOpen] = useState(false);
   const { errors, config: parsed } = parse(form, t);
   const dirty = JSON.stringify(form) !== JSON.stringify(toForm(config));
 
@@ -96,9 +94,10 @@ function SettingsPageView() {
       return;
     }
     const patch = Object.fromEntries(Object.entries(parsed).filter(([k, v]) => JSON.stringify(v) !== JSON.stringify(config[k as keyof AppConfig]))) as Partial<AppConfig>;
-    updateConfig(patch);
-    setSubmitted(false);
-    toast.good(t('settings.saved'));
+    updateConfig(patch).then(() => {
+      setSubmitted(false);
+      toast.good(t('settings.saved'));
+    }, () => {});
   };
 
   const preview = parsed ?? config;
@@ -168,28 +167,8 @@ function SettingsPageView() {
             <p className="mt-3 text-xs text-fg-3">{t('settings.callersPay', { voice: preview.audioRate, video: preview.videoRate })}</p>
           </Card>
           <Warning>{t('settings.packWarning')}</Warning>
-          <Card title={t('settings.demo')}>
-            <p className="mb-3 text-sm text-fg-2">{t('settings.demoBody')}</p>
-            <Button variant="danger" icon={RotateCcw} onClick={() => setResetOpen(true)}>
-              {t('settings.resetDemo')}
-            </Button>
-          </Card>
         </div>
       </div>
-      <ConfirmAction
-        open={resetOpen}
-        onClose={() => setResetOpen(false)}
-        title={t('settings.resetTitle')}
-        body={t('settings.resetBody')}
-        confirmLabel={t('settings.reset')}
-        danger
-        reasonRequired={false}
-        onConfirm={() => {
-          resetDemo();
-          setForm(toForm(useAdmin.getState().config));
-          toast.good(t('settings.resetToast'));
-        }}
-      />
     </>
   );
 }

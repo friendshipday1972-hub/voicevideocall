@@ -9,7 +9,7 @@ npm install
 npm run dev            # http://localhost:3000
 ```
 
-Sign in with **any email and password**. This prototype holds only demo data, so there is no account setup. Anyone with the link can open it.
+Copy `.env.example` to `.env.local` and fill in the Supabase URL and publishable key. Sign in with the admin login created by `npm run create-admin` in `supabase/`. Only accounts whose profile has `role = 'admin'` get in.
 
 | Command | What it does |
 |---|---|
@@ -20,9 +20,8 @@ Sign in with **any email and password**. This prototype holds only demo data, so
 ## Deploy on Vercel
 
 1. In Vercel, import the GitHub repo and set **Root Directory** to `admin`. The framework is detected as Next.js; keep the default build settings.
-2. Deploy. No environment variables are needed.
-
-The demo data lives in each browser, so every admin who opens the site sees their own copy.
+2. Under **Environment Variables**, add `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`. Both are public values from Supabase → Settings → API.
+3. Deploy.
 
 ## Languages
 
@@ -39,23 +38,11 @@ Every page works at phone width. Tables become stacked cards (the first column i
 
 ## Security
 
-- **Prototype sign-in:** any email and password opens the dashboard (`src/app/actions/auth.ts`). Bring back a real credential check before connecting real data.
-- **Proxy gate:** `src/proxy.ts` still sends anyone without a session to `/login`, and the server re-checks the session (`getCurrentAdmin`).
-- **Session cookie:** a signed JWT (HS256, 8 hours), `httpOnly`, `sameSite=lax`, `secure` in production. It uses `SESSION_SECRET` when set, otherwise a built-in demo secret.
-- **Audit log:** every action asks for a reason and writes an entry to the Activity log, under the email used to sign in.
-
-## Data (prototype stage)
-
-The dashboard runs on a realistic, deterministic 30-day dataset:
-- 184 callers, the same 12 hosts as the mobile app, ~1,000 calls
-- purchases, payouts, reports and KYC applications
-
-It's stored in this browser (localStorage). Every action works and persists: approve or reject KYC, suspend or ban, refunds, payouts, strikes, featuring hosts, hiding reviews, and config changes. **App settings → Reset demo data** starts over.
-
-When the Supabase backend is connected:
-- `src/lib/data/store.ts` actions become server routes using the service role.
-- Reads come from Postgres.
-- Admin actions then reach the phones directly. For example, approving KYC moves a woman from "Under review" to her host dashboard.
+- **Sign-in:** Supabase Auth with email and password. The dashboard checks that the profile is an admin and sends everyone else back to `/login`.
+- **Data:** read straight from the database under row level security. An admin profile can read everything; nobody else can read other people's data, whatever page they open.
+- **Changes:** every action calls an `admin_*` database function. It refuses non-admins, makes the change in one transaction and writes the audit log under the admin's email. No service key is ever sent to the browser.
+- **Live:** the dashboard subscribes to Supabase Realtime and refreshes on its own when calls, payments, reports or applications change.
+- **Still to add:** 2FA and separate moderator and super-admin roles.
 
 ## Spotlight Score
 

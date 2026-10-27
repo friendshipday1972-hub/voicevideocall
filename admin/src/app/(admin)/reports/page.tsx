@@ -123,9 +123,10 @@ function ReportsPageView() {
                   variant={action === 'dismiss' ? 'secondary' : 'danger'}
                   disabled={note.trim().length < 3}
                   onClick={() => {
-                    data.resolveReport(active.id, action, note.trim(), refund);
-                    toast.good(t('reports.loggedToast'));
-                    setActive(null);
+                    data.resolveReport(active.id, action, note.trim(), refund).then(() => {
+                      toast.good(t('reports.loggedToast'));
+                      setActive(null);
+                    }, () => {});
                   }}>
                   {t('reports.applyDecision')}
                 </Button>

@@ -99,6 +99,8 @@ export default function RootLayout() {
     const check = () => findRinging(userId).then((id) => id && showIncoming(id));
     check();
     const ping = setInterval(() => supabase.rpc('ping').then(() => {}), 60_000);
+    // Safety net for a missed live event (flaky network): a cheap check for a ringing call.
+    const poll = setInterval(() => AppState.currentState === 'active' && check(), 8000);
     const sub = AppState.addEventListener('change', (state) => {
       if (state === 'active') {
         supabase.rpc('ping').then(() => {});
@@ -108,6 +110,7 @@ export default function RootLayout() {
     return () => {
       stop();
       clearInterval(ping);
+      clearInterval(poll);
       sub.remove();
     };
   }, [isHost, userId]);

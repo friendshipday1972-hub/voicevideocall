@@ -24,9 +24,9 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { Suspense, useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from 'react';
 
-import { logout } from '@/app/actions/auth';
 import { useT, type TKey } from '@/i18n';
 import { useAdmin, useAdminHydrated } from '@/lib/data/store';
+import { supabase } from '@/lib/supabase';
 
 import { LanguageSwitch } from './language';
 import { Avatar, Toaster, cx } from './ui';
@@ -207,7 +207,7 @@ function ThemeToggle({ className }: { className?: string }) {
   );
 }
 
-/** Signed-in admin chip + logout. Rendered inside a Suspense boundary by the server layout. */
+/** Signed-in admin chip + logout. */
 export function AdminIdentity({ email }: { email: string }) {
   const setActor = useAdmin((s) => s.setActor);
   const t = useT();
@@ -218,7 +218,11 @@ export function AdminIdentity({ email }: { email: string }) {
         <span className="block font-medium text-fg">{t('shell.superAdmin')}</span>
         <span className="text-fg-3">{email}</span>
       </span>
-      <form action={logout}>
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          supabase.auth.signOut();
+        }}>
         <button type="submit" aria-label={t('shell.logout')} title={t('shell.logout')} className="grid size-9 cursor-pointer place-items-center rounded-lg text-fg-2 hover:bg-surface-2 hover:text-bad">
           <LogOut className="size-4" aria-hidden />
         </button>

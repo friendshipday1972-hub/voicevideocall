@@ -107,8 +107,8 @@ function HostDetailView() {
             variant={host.featured ? 'secondary' : 'primary'}
             disabled={host.status !== 'active'}
             onClick={() => {
-              data.setFeatured(host.id, !host.featured);
-              toast.good(host.featured ? t('host.unfeatured') : t('host.nowFeatured', { name: host.name }));
+              const message = host.featured ? t('host.unfeatured') : t('host.nowFeatured', { name: host.name });
+              data.setFeatured(host.id, !host.featured).then(() => toast.good(message), () => {});
             }}>
             {host.featured ? t('host.unfeature') : t('host.featureInSpotlight')}
           </Button>
@@ -116,8 +116,7 @@ function HostDetailView() {
             label={t('host.levelOverride')}
             value={String(host.levelOverride ?? 'auto')}
             onChange={(v) => {
-              data.setLevelOverride(host.id, v === 'auto' ? null : (Number(v) as 1 | 2 | 3 | 4));
-              toast.good(t('host.levelUpdated'));
+              data.setLevelOverride(host.id, v === 'auto' ? null : (Number(v) as 1 | 2 | 3 | 4)).then(() => toast.good(t('host.levelUpdated')), () => {});
             }}
             options={[{ value: 'auto', label: t('host.levelAuto', { n: host.level }) }, ...SHARE.map((pct, i) => ({ value: String(i + 1), label: t('host.overrideOption', { n: i + 1, pct }) }))]}
           />
@@ -219,7 +218,7 @@ function HostDetailView() {
             </div>
             <div>
               <dt className="text-xs text-fg-3">{t('host.faceMatch')}</dt>
-              <dd className="font-medium">{host.kyc.faceMatch}%</dd>
+              <dd className="font-medium">{host.kyc.faceMatch === null ? "—" : `${host.kyc.faceMatch}%`}</dd>
             </div>
             <div className="min-w-0">
               <dt className="text-xs text-fg-3">{t('host.payoutTo')}</dt>
@@ -267,13 +266,16 @@ function HostDetailView() {
           danger={active.danger}
           onConfirm={(reason) => {
             if (!pending) return;
-            if (pending.kind === 'suspend') data.setHostStatus(host.id, 'suspended', reason);
-            if (pending.kind === 'ban') data.setHostStatus(host.id, 'banned', reason);
-            if (pending.kind === 'reactivate') data.setHostStatus(host.id, 'active', reason);
-            if (pending.kind === 'strike') data.addStrike(host.id, reason);
-            if (pending.kind === 'clear') data.clearStrikes(host.id, reason);
-            if (pending.kind === 'hide') data.setReviewHidden(pending.callId, pending.hidden, reason);
-            toast.good(t('common.done', { action: active.label }));
+            const done = () => toast.good(t('common.done', { action: active.label }));
+            const saved =
+              pending.kind === 'hide'
+                ? data.setReviewHidden(pending.callId, pending.hidden, reason)
+                : pending.kind === 'strike'
+                  ? data.addStrike(host.id, reason)
+                  : pending.kind === 'clear'
+                    ? data.clearStrikes(host.id, reason)
+                    : data.setHostStatus(host.id, pending.kind === 'suspend' ? 'suspended' : pending.kind === 'ban' ? 'banned' : 'active', reason);
+            saved.then(done, () => {});
           }}
         />
       )}

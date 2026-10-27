@@ -145,8 +145,8 @@ function ReviewsPageView() {
           confirmLabel={toggle.reviewHidden ? t('common.restore') : t('common.hide')}
           danger={!toggle.reviewHidden}
           onConfirm={(reason) => {
-            data.setReviewHidden(toggle.id, !toggle.reviewHidden, reason);
-            toast.good(toggle.reviewHidden ? t('reviews.restoredToast') : t('reviews.hiddenToast'));
+            const message = toggle.reviewHidden ? t('reviews.restoredToast') : t('reviews.hiddenToast');
+            data.setReviewHidden(toggle.id, !toggle.reviewHidden, reason).then(() => toast.good(message), () => {});
           }}
         />
       )}

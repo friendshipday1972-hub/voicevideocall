@@ -203,10 +203,11 @@ function UserDetailView() {
           confirmLabel={confirmCopy.label}
           danger={confirmCopy.danger}
           onConfirm={(reason) => {
-            if (pending?.kind === 'status') data.setUserStatus(user.id, pending.status, reason);
-            if (pending?.kind === 'refundPurchase') data.refundPurchase(pending.id, reason);
-            if (pending?.kind === 'refundCall') data.refundCall(pending.id, reason);
-            toast.good(t('common.doneLogged', { action: confirmCopy.label }));
+            if (!pending) return;
+            const saved =
+              pending.kind === 'status' ? data.setUserStatus(user.id, pending.status, reason) : pending.kind === 'refundPurchase' ? data.refundPurchase(pending.id, reason) : data.refundCall(pending.id, reason);
+            const label = confirmCopy.label;
+            saved.then(() => toast.good(t('common.doneLogged', { action: label })), () => {});
           }}
         />
       )}
@@ -224,8 +225,7 @@ function UserDetailView() {
               variant="primary"
               disabled={!Number.isInteger(delta) || delta === 0 || coinReason.trim().length < 3}
               onClick={() => {
-                data.adjustCoins(user.id, delta, coinReason.trim());
-                toast.good(t(delta > 0 ? 'user.added' : 'user.removed', { n: Math.abs(delta) }));
+                data.adjustCoins(user.id, delta, coinReason.trim()).then(() => toast.good(t(delta > 0 ? 'user.added' : 'user.removed', { n: Math.abs(delta) })), () => {});
                 setCoinsOpen(false);
                 setCoinDelta('');
                 setCoinReason('');

@@ -42,8 +42,8 @@ function SpotlightPageView() {
   const atRisk = rows.filter((r) => r.quality.atRisk).sort((a, b) => a.quality.score - b.quality.score);
 
   const toggleFeature = (r: Row) => {
-    data.setFeatured(r.id, !r.featured);
-    toast.good(r.featured ? t('spotlight.removedToast', { name: r.h.name }) : t('spotlight.featuredToast', { name: r.h.name }));
+    const message = r.featured ? t('spotlight.removedToast', { name: r.h.name }) : t('spotlight.featuredToast', { name: r.h.name });
+    data.setFeatured(r.id, !r.featured).then(() => toast.good(message), () => {});
   };
 
   const columns: Column<Row>[] = [

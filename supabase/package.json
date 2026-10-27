@@ -1,0 +1,16 @@
+{
+  "name": "baatein-backend",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "migrate": "node --env-file=../.env scripts/migrate.mjs",
+    "test:db": "node --env-file=../.env tests/billing.test.mjs",
+    "test:e2e": "node --env-file=../.env tests/e2e.test.mjs",
+    "create-admin": "node --env-file=../.env scripts/create-admin.mjs",
+    "configure-auth": "node --env-file=../.env scripts/configure-auth.mjs"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.118.0",
+    "pg": "^8.16.0"
+  }
+}

@@ -16,10 +16,11 @@ type Check = { key: string; label: string; ok: boolean; detail: string; blocking
 /** Automatic checks run on every application (provider results with the real KYC integration). */
 function checks(a: Application, hostNames: Map<string, string>, t: Translate): Check[] {
   return [
-    { key: 'woman', label: t('apps.checkWoman'), ok: a.aadhaarGender === 'female', detail: t('apps.checkWomanDetail', { gender: t(a.aadhaarGender === 'female' ? 'apps.female' : 'apps.male') }), blocking: true },
-    { key: 'adult', label: t('apps.checkAdult'), ok: a.aadhaarAge >= 18, detail: t('apps.checkAdultDetail', { n: a.aadhaarAge }) + (a.aadhaarAge !== a.age ? t('apps.saidAge', { n: a.age }) : ''), blocking: true },
-    { key: 'face', label: t('apps.checkFace'), ok: a.faceMatch >= 90, detail: t('apps.checkFaceDetail', { n: a.faceMatch }), blocking: false },
-    { key: 'live', label: t('apps.checkLive'), ok: a.livenessPassed, detail: a.livenessPassed ? t('apps.livePassed') : t('apps.liveFailed'), blocking: false },
+    { key: 'woman', label: t('apps.checkWoman'), ok: a.gender === 'female', detail: t('apps.checkWomanDetail', { gender: t(a.gender === 'female' ? 'apps.female' : a.gender === 'male' ? 'apps.male' : 'apps.other') }), blocking: true },
+    { key: 'adult', label: t('apps.checkAdult'), ok: a.age >= 18, detail: t('apps.checkAdultDetail', { n: a.age }), blocking: true },
+    // Until a KYC provider scores the selfie, this stays a manual check (non-blocking warning).
+    { key: 'face', label: t('apps.checkFace'), ok: a.faceMatch !== null && a.faceMatch >= 90, detail: a.faceMatch === null ? t('apps.faceManual') : t('apps.checkFaceDetail', { n: a.faceMatch }), blocking: false },
+    { key: 'live', label: t('apps.checkLive'), ok: a.selfieDone, detail: a.selfieDone ? t('apps.livePassed') : t('apps.liveFailed'), blocking: false },
     { key: 'dup', label: t('apps.checkDup'), ok: !a.duplicateOf, detail: a.duplicateOf ? t('apps.dupFound', { name: hostNames.get(a.duplicateOf) ?? a.duplicateOf }) : t('apps.dupNone'), blocking: false },
   ];
 }
@@ -154,11 +155,11 @@ function ApplicationsPageView() {
           placeholder={action.kind === 'approve' ? t('apps.optionalNote') : t('apps.rejectPlaceholder')}
           onConfirm={(note) => {
             if (action.kind === 'approve') {
-              data.approveApplication(action.app.id, note);
-              toast.good(t('apps.approvedToast', { name: action.app.name }));
+              const name = action.app.name;
+              data.approveApplication(action.app.id, note).then(() => toast.good(t('apps.approvedToast', { name })), () => {});
             } else {
-              data.rejectApplication(action.app.id, note);
-              toast.info(t('apps.rejectedToast', { name: action.app.name }));
+              const name = action.app.name;
+              data.rejectApplication(action.app.id, note).then(() => toast.info(t('apps.rejectedToast', { name })), () => {});
             }
           }}
         />

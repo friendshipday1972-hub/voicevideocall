@@ -174,9 +174,9 @@ function PaymentsPageView() {
           reasonRequired={copy.required}
           placeholder={pending.kind === 'payout' && pending.to === 'paid' ? t('payments.utrPlaceholder') : undefined}
           onConfirm={(reason) => {
-            if (pending.kind === 'refund') data.refundPurchase(pending.p.id, reason);
-            else data.decidePayout(pending.p.id, pending.to, reason);
-            toast.good(t('common.done', { action: copy.label }));
+            const saved = pending.kind === 'refund' ? data.refundPurchase(pending.p.id, reason) : data.decidePayout(pending.p.id, pending.to, reason);
+            const label = copy.label;
+            saved.then(() => toast.good(t('common.done', { action: label })), () => {});
           }}
         />
       )}

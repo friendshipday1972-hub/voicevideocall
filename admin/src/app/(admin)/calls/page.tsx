@@ -135,8 +135,7 @@ function CallsPageView() {
           confirmLabel={t('calls.refundCall')}
           danger
           onConfirm={(reason) => {
-            data.refundCall(refund.id, reason);
-            toast.good(t('calls.refundedToast'));
+            data.refundCall(refund.id, reason).then(() => toast.good(t('calls.refundedToast')), () => {});
           }}
         />
       )}

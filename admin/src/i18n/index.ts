@@ -48,6 +48,7 @@ const useLangStore = create<{ lang: UiLang; setLang: (lang: UiLang) => void }>()
 );
 
 export const setLang = (lang: UiLang) => useLangStore.getState().setLang(lang);
+export const getLang = (): UiLang => useLangStore.getState().lang;
 
 /** The server always renders English; the saved language takes over right after hydration. */
 export function useLang(): UiLang {

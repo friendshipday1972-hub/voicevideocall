@@ -44,7 +44,8 @@ export type Host = {
   /** Trailing-30-day behaviour (strikes are kept separately on the host). */
   stats: Omit<QualityInput, 'strikes'>;
   strikes: number;
-  kyc: { pan: string; aadhaarLast4: string; faceMatch: number };
+  /** faceMatch is null until a KYC provider scores the selfie. */
+  kyc: { pan: string; aadhaarLast4: string; faceMatch: number | null };
   payout: string;
   colors: [string, string];
 };
@@ -59,12 +60,11 @@ export type Application = {
   bio: string;
   pan: string;
   aadhaarLast4: string;
-  /** From Aadhaar via DigiLocker. */
-  aadhaarGender: 'female' | 'male';
-  aadhaarAge: number;
-  /** Selfie vs ID photo similarity, 0–100. */
-  faceMatch: number;
-  livenessPassed: boolean;
+  /** As entered at sign-up (DigiLocker will confirm it from Aadhaar later). */
+  gender: 'female' | 'male' | 'other';
+  /** Selfie vs ID photo similarity, 0–100; null until a KYC provider is connected. */
+  faceMatch: number | null;
+  selfieDone: boolean;
   duplicateOf: string | null;
   payout: string;
   submittedAt: number;
