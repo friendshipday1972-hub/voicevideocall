@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet, View } from 'react-native';
 
-import { RATING_TAGS } from '@/data/mock';
+import { RATING_TAGS } from '@/data/catalog';
 import { useT } from '@/i18n';
 import { tagLabel } from '@/i18n/labels';
 import { haptic } from '@/lib/haptics';

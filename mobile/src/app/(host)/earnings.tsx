@@ -26,22 +26,25 @@ export default function Earnings() {
   const earnings = useHost((s) => s.earnings);
   const payouts = useHost((s) => s.payouts);
   const requestPayout = useHost((s) => s.requestPayout);
-  const application = useHost((s) => s.application);
+  const target = useHost((s) => s.payoutTarget);
   const [open, setOpen] = useState(false);
   const [amount, setAmount] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [now] = useState(() => Date.now());
   const b = hostBalances(earnings, now);
   const canWithdraw = b.available >= appConfig.minWithdrawalPaise;
-  const payoutTo = application?.payout.kind === 'upi' ? application.payout.upiId : application ? `A/c ••${application.payout.account.slice(-4)}` : '';
+  const payoutTo = target?.kind === 'upi' ? target.upiId : target ? `A/c ••${target.last4}` : '';
+  const [sending, setSending] = useState(false);
 
-  const submit = () => {
+  const submit = async () => {
     const paise = Math.round(Number(amount) * 100);
     if (!paise) return setError(t('earnings.enterAmount'));
-    const r = requestPayout(paise);
+    setSending(true);
+    const r = await requestPayout(paise);
+    setSending(false);
     if (!r.ok) {
       haptic.error();
-      return setError(t(r.error === 'belowMin' ? 'earnings.belowMin' : 'earnings.aboveAvailable'));
+      return setError(t(r.error === 'belowMin' ? 'earnings.belowMin' : r.error === 'aboveAvailable' ? 'earnings.aboveAvailable' : 'errors.network'));
     }
     haptic.success();
     toast.success(t('earnings.requested', { amount: formatRupees(paise) }));
@@ -146,7 +149,7 @@ export default function Earnings() {
         </Card>
       )}
 
-      <Sheet visible={open} onClose={() => setOpen(false)} title={t('earnings.withdraw')} footer={<Button title={t('earnings.request')} onPress={submit} />}>
+      <Sheet visible={open} onClose={() => setOpen(false)} title={t('earnings.withdraw')} footer={<Button title={t('earnings.request')} onPress={submit} loading={sending} />}>
         <TextField
           label={t('earnings.amount')}
           value={amount}

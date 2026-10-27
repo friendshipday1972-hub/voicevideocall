@@ -13,15 +13,13 @@ import { PressableScale } from '@/components/PressableScale';
 import { TextField } from '@/components/TextField';
 import { toast } from '@/components/Toast';
 import { appConfig } from '@/config/appConfig';
-import { LANGUAGES, type LanguageCode } from '@/data/mock';
+import { LANGUAGES, type LanguageCode } from '@/data/catalog';
 import { useT } from '@/i18n';
 import { languageName } from '@/i18n/labels';
 import { signOutAndReset } from '@/lib/account';
-import { applyLedger } from '@/lib/billing';
 import { haptic } from '@/lib/haptics';
 import { useBackHandler } from '@/lib/useBackHandler';
-import { ageFromDob, roleForGender, useSession, type Gender } from '@/stores/session';
-import { useWallet } from '@/stores/wallet';
+import { ageFromDob, useSession, type Gender } from '@/stores/session';
 import { motion, radius, spacing, useTheme } from '@/theme';
 
 type StepName = 'About you' | 'Pick an avatar' | 'Your languages';
@@ -72,6 +70,7 @@ export default function Onboarding() {
   const [languages, setLanguages] = useState<LanguageCode[]>([uiLanguage]);
   const [consent, setConsent] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [saving, setSaving] = useState(false);
   const monthRef = useRef<TextInput>(null);
   const yearRef = useRef<TextInput>(null);
 
@@ -100,16 +99,18 @@ export default function Onboarding() {
       setSubmitted(false);
       return;
     }
-    haptic.success();
-    completeProfile({ displayName: name.trim(), gender: gender!, role: roleForGender(gender!), dateOfBirth: dob!, avatarKey: isHost ? 'flower' : avatar, languages, consentAt: Date.now(), consentVersion: '2026-10' });
-    if (!isHost) {
-      // One free voice minute for every new caller, recorded like any other ledger entry.
-      const r = applyLedger(useWallet.getState(), { delta: appConfig.trialCoins, reason: 'signup_trial', idempotencyKey: 'signup_trial', note: 'Welcome coins' });
-      if (r.applied) {
-        useWallet.getState().commit(r.wallet);
-        toast.success(t('onboarding.welcomeCoins', { n: appConfig.trialCoins }));
-      }
-    }
+    setSaving(true);
+    // The server creates the profile, decides caller vs host, and adds the welcome coins.
+    completeProfile({ displayName: name.trim(), gender: gender!, dateOfBirth: dob!, avatarKey: isHost ? 'flower' : avatar, languages, consentVersion: '2026-10' })
+      .then(() => {
+        haptic.success();
+        if (!isHost && appConfig.trialCoins > 0) toast.success(t('onboarding.welcomeCoins', { n: appConfig.trialCoins }));
+      })
+      .catch((e: Error) => {
+        haptic.error();
+        toast.error(t(e.message === 'under_18' ? 'onboarding.underage' : 'errors.generic', { age: appConfig.minAge }));
+      })
+      .finally(() => setSaving(false));
   };
 
   const back = () => {
@@ -135,7 +136,7 @@ export default function Onboarding() {
       footer={
         <View style={{ flexDirection: 'row', gap: spacing.md }}>
           <Button title={t('common.back')} variant="ghost" onPress={back} style={{ flex: 1 }} />
-          <Button title={isLast ? (isHost ? t('onboarding.toVerification') : t('onboarding.startTalking')) : t('common.next')} onPress={next} style={{ flex: 2 }} disabled={underage} />
+          <Button title={isLast ? (isHost ? t('onboarding.toVerification') : t('onboarding.startTalking')) : t('common.next')} onPress={next} style={{ flex: 2 }} disabled={underage} loading={saving} />
         </View>
       }>
       <Progress step={step} total={steps.length} />

@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -16,12 +16,12 @@ import { Card, EmptyState, MAX_WIDTH } from '@/components/Layout';
 import { ReviewList, Stars, TagSummary, TierBadge, type ReviewItem } from '@/components/Quality';
 import { ReportSheet } from '@/components/ReportSheet';
 import { toast } from '@/components/Toast';
-import { HOSTS } from '@/data/mock';
+import type { Review } from '@/data/catalog';
 import { useT } from '@/i18n';
 import { languageName } from '@/i18n/labels';
 import { haptic } from '@/lib/haptics';
 import { useStartCall } from '@/lib/useStartCall';
-import { usePresence } from '@/stores/presence';
+import { fetchReviews, useHostById, usePresence } from '@/stores/hosts';
 import { useSession } from '@/stores/session';
 import { useSocial } from '@/stores/social';
 import { fonts, levelColors, motion, radius, spacing, useTheme } from '@/theme';
@@ -33,17 +33,21 @@ export default function HostProfile() {
   const t = useT();
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const host = HOSTS.find((h) => h.id === id);
-  const presence = usePresence((s) => (id ? s.presence[id] : 'offline'));
+  const host = useHostById(id);
+  const presence = usePresence((s) => (id ? (s.presence[id] ?? host?.presence) : 'offline')) ?? 'offline';
+  const [others, setOthers] = useState<Review[]>([]);
   const isFav = useSocial((s) => (id ? s.favorites.includes(id) : false));
   const toggleFavorite = useSocial((s) => s.toggleFavorite);
   const block = useSocial((s) => s.block);
   const [reporting, setReporting] = useState(false);
   const { start, sheet } = useStartCall();
   const myCalls = useSocial((s) => s.calls);
-  const [now] = useState(() => Date.now());
   const myName = useSession((s) => s.profile?.displayName ?? '');
   const myAvatar = useSession((s) => s.profile?.avatarKey ?? 'sun');
+
+  useEffect(() => {
+    if (id) fetchReviews(id).then(setOthers, () => {});
+  }, [id]);
 
   if (!host) {
     return (
@@ -59,7 +63,7 @@ export default function HostProfile() {
     ...myCalls
       .filter((c) => c.hostId === host.id && c.rating)
       .map((c) => ({ id: c.id, author: t('hostProfile.you', { name: myName }), avatarKey: myAvatar, stars: c.rating ?? 0, tags: c.tags ?? [], text: c.comment ?? '', when: c.startedAt })),
-    ...host.reviews.map((r) => ({ ...r, when: now - r.daysAgo * 86_400_000 })),
+    ...others.filter((r) => !myCalls.some((c) => c.id === r.id && c.hostId === host.id)).map((r) => ({ ...r, when: r.createdAt })),
   ];
 
   const confirmBlock = () =>
@@ -69,7 +73,7 @@ export default function HostProfile() {
         text: t('hostProfile.blockConfirm'),
         style: 'destructive',
         onPress: () => {
-          block(host.id);
+          block(host.id).catch(() => toast.error(t('errors.network')));
           haptic.success();
           toast.success(t('hostProfile.blocked', { name: host.name }));
           router.back();
@@ -90,7 +94,7 @@ export default function HostProfile() {
                 background="rgba(0,0,0,0.25)"
                 color="#fff"
                 onPress={() => {
-                  toggleFavorite(host.id);
+                  toggleFavorite(host.id).catch(() => toast.error(t("errors.network")));
                   haptic.success();
                   toast.success(isFav ? t('hostProfile.favRemoved') : t('hostProfile.favAdded'));
                 }}

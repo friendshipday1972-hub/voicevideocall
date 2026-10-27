@@ -12,10 +12,10 @@ import { Chip } from '@/components/Chip';
 import { CoinIcon } from '@/components/CoinBadge';
 import { Card, EmptyState, MAX_WIDTH } from '@/components/Layout';
 import { PressableScale } from '@/components/PressableScale';
-import { HOSTS } from '@/data/mock';
+import { hostColors } from '@/data/catalog';
 import { useLanguage, useT } from '@/i18n';
 import { formatDuration, formatWhen } from '@/lib/format';
-import { usePresence } from '@/stores/presence';
+import { useHosts, usePresence } from '@/stores/hosts';
 import { useSocial, type CallRecord } from '@/stores/social';
 import { spacing, useTheme } from '@/theme';
 
@@ -25,9 +25,9 @@ function CallRow({ call, index }: { call: CallRecord; index: number }) {
 const { colors } = useTheme();
 const t = useT();
 const lang = useLanguage();
-  const host = HOSTS.find((h) => h.id === call.hostId);
+  // Name and colour come with the call record, so past calls show even if she's no longer listed.
+  const host = { id: call.hostId, name: call.hostName, colors: hostColors(call.hostId) };
   const presence = usePresence((s) => s.presence[call.hostId]);
-  if (!host) return null;
   return (
     <Animated.View entering={FadeInDown.delay(Math.min(index, 8) * 35).duration(280)}>
       <PressableScale onPress={() => router.push({ pathname: '/host/[id]', params: { id: host.id } })} scaleTo={0.985} accessibilityLabel={`${host.name}, ${formatWhen(call.startedAt, lang)}`}>
@@ -78,7 +78,7 @@ export default function Calls() {
   const [filter, setFilter] = useState<Filter>('all');
   const presence = usePresence((s) => s.presence);
 
-  const favHosts = HOSTS.filter((h) => favorites.includes(h.id));
+  const favHosts = useHosts((s) => s.hosts).filter((h) => favorites.includes(h.id));
 
   return (
     <View style={[styles.flex, { backgroundColor: colors.background, paddingTop: insets.top }]}>

@@ -1,39 +1,38 @@
-import { useSyncExternalStore } from 'react';
+import type { RealtimeChannel } from '@supabase/supabase-js';
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
 
-import { appConfig } from '@/config/appConfig';
-import type { Gift, LanguageCode } from '@/data/mock';
+import type { Gift, LanguageCode } from '@/data/catalog';
 import type { QualityInput } from '@/lib/quality';
+import { errorCode, rpc, supabase } from '@/lib/supabase';
 
-import { persistStorage } from './storage';
+import { callDuration, type MyCallRow } from './social';
 
 export type HostApplication = {
   displayName: string;
   bio: string;
+  city: string;
   languages: LanguageCode[];
   pan: string;
   aadhaarLast4: string;
   selfieDone: boolean;
   payout: { kind: 'upi'; upiId: string } | { kind: 'bank'; account: string; ifsc: string };
-  agreedAt: number;
 };
 
 /** What an earning line is, stored as data so it can be shown in any app language. */
 export type EarningLabel =
-| { kind: 'call'; type: 'audio' | 'video'; name: string }
-| { kind: 'gift'; gift: Gift['id']; name: string }
-| { kind: 'lastWeek' }
-| { kind: 'thisWeek' }
-| { kind: 'bonus' }
-| { kind: 'withdrawal' };
+  | { kind: 'call'; type: 'audio' | 'video'; name: string }
+  | { kind: 'gift'; gift: Gift['id']; name: string }
+  | { kind: 'lastWeek' }
+  | { kind: 'thisWeek' }
+  | { kind: 'bonus' }
+  | { kind: 'withdrawal' };
 
 export type EarningEntry = {
-id: string;
-paise: number;
-reason: 'call_earning' | 'gift_earning' | 'bonus' | 'payout';
-/** Older saved entries may still hold a plain English string. */
-label: EarningLabel | string;
+  id: string;
+  paise: number;
+  reason: 'call_earning' | 'gift_earning' | 'bonus' | 'payout';
+  /** Older saved entries may still hold a plain English string. */
+  label: EarningLabel | string;
   createdAt: number;
   availableAt: number;
 };
@@ -42,14 +41,19 @@ export type HostCall = { id: string; callerName: string; avatarKey: string; type
 
 export type HostReview = { id: string; author: string; avatarKey: string; stars: number; tags: string[]; text: string; createdAt: number };
 
-/** Rings and answers in the last 30 days; answerRate for the Spotlight Score is derived from these. */
-type RingStats = { rung: number; answered: number };
-
 export type PayoutRequest = { id: string; amountPaise: number; status: 'requested' | 'approved' | 'paid' | 'rejected'; createdAt: number };
+
+/** Where her payouts go, shown masked. */
+export type PayoutTarget = { kind: 'upi'; upiId: string } | { kind: 'bank'; last4: string } | null;
 
 type HostState = {
   status: 'none' | 'pending' | 'approved' | 'rejected';
-  application: HostApplication | null;
+  decisionNote: string | null;
+  payoutTarget: PayoutTarget;
+  bio: string;
+  city: string;
+  /** Masked ID details she submitted, e.g. AB•••••4F and the Aadhaar last 4. */
+  idSummary: { pan: string; aadhaarLast4: string } | null;
   online: boolean;
   level: 1 | 2 | 3 | 4;
   minutes30d: number;
@@ -59,116 +63,170 @@ type HostState = {
   payouts: PayoutRequest[];
   calls: HostCall[];
   reviews: HostReview[];
-  /** Trailing-30-day behaviour behind her Spotlight Score (answerRate comes from `rings`). */
+  /** Trailing-30-day behaviour behind her Spotlight Score, computed by the server. */
   qualityStats: QualityInput;
-  rings: RingStats;
-  submitApplication: (app: HostApplication) => void;
-  /** Demo only: admin approval happens in the admin panel. */
-  simulateApproval: () => void;
-  setOnline: (online: boolean) => void;
-  addEarning: (e: Omit<EarningEntry, 'id' | 'createdAt' | 'availableAt'>, minutes?: number) => void;
-  /** Records a finished call and updates her call-length and volume stats. */
-  addCall: (call: Omit<HostCall, 'id'>) => void;
-  /** A caller's rating after a call; updates her rating stats. */
-  addReview: (review: Omit<HostReview, 'id' | 'createdAt'>) => void;
-  /** Every incoming ring, answered or not (declines and missed calls lower the answer rate). */
-  recordRing: (answered: boolean) => void;
-  requestPayout: (amountPaise: number) => { ok: boolean; error?: 'belowMin' | 'aboveAvailable' };
+  /** Her host record has been checked at least once (status is known). */
+  loaded: boolean;
+  refresh: () => Promise<void>;
+  submitApplication: (app: HostApplication) => Promise<void>;
+  setOnline: (online: boolean) => Promise<void>;
+  requestPayout: (amountPaise: number) => Promise<{ ok: boolean; error?: 'belowMin' | 'aboveAvailable' | 'network' }>;
+  /** Live updates for her approval, presence, earnings, payouts and reviews. Returns the unsubscribe. */
+  start: (userId: string) => () => void;
   reset: () => void;
 };
 
-const DAY = 86_400_000;
+const EMPTY_STATS: QualityInput = { ratingAvg: 0, ratingCount: 0, repeatCallerRate: 0, avgCallMinutes: 0, answerRate: 1, reportRate: 0, activeDays: 0, calls30d: 0, strikes: 0 };
 
-const EMPTY_STATS: QualityInput = { ratingAvg: 0, ratingCount: 0, repeatCallerRate: 0, avgCallMinutes: 0, answerRate: 0, reportRate: 0, activeDays: 0, calls30d: 0, strikes: 0 };
-
-/** Her stats with answerRate derived from rings. */
-export function hostQualityInput(stats: QualityInput, rings: RingStats, strikes: number): QualityInput {
-  return { ...stats, answerRate: rings.rung ? rings.answered / rings.rung : 1, strikes };
+/** Her quality input including strikes (kept as a function so screens read the same shape as before). */
+export function hostQualityInput(stats: QualityInput, strikes: number): QualityInput {
+  return { ...stats, strikes };
 }
 
-export const useHost = create<HostState>()(
-  persist(
-    (set, get) => ({
-      status: 'none',
-      application: null,
-      online: false,
-      level: 1,
-      minutes30d: 0,
-      rating: 0,
-      strikes: 0,
-      earnings: [],
-      payouts: [],
-      calls: [],
-      reviews: [],
-      qualityStats: EMPTY_STATS,
-      rings: { rung: 0, answered: 0 },
-      submitApplication: (application) => set({ application, status: 'pending' }),
-      simulateApproval: () => {
-        const now = Date.now();
-        // Seed a little history so the dashboard is meaningful in the demo.
-        const seed: EarningEntry[] = [
-          { id: 'seed1', paise: 52_500, reason: 'call_earning', label: { kind: 'lastWeek' }, createdAt: now - 10 * DAY, availableAt: now - 3 * DAY },
-          { id: 'seed2', paise: 18_000, reason: 'bonus', label: { kind: 'bonus' }, createdAt: now - 9 * DAY, availableAt: now - 2 * DAY },
-          { id: 'seed3', paise: 23_600, reason: 'call_earning', label: { kind: 'thisWeek' }, createdAt: now - 2 * DAY, availableAt: now + 5 * DAY },
-        ];
-        const calls: HostCall[] = [
-          { id: 'sc1', callerName: 'Rahul', avatarKey: 'moon', type: 'audio', startedAt: now - 2 * DAY, durationSec: 734, earnedPaise: 2_048 },
-          { id: 'sc2', callerName: 'Vikram', avatarKey: 'rocket', type: 'video', startedAt: now - 3 * DAY, durationSec: 421, earnedPaise: 2_100 },
-        ];
-        const reviews: HostReview[] = [
-          { id: 'sr1', author: 'Rahul', avatarKey: 'moon', stars: 5, tags: ['Friendly', 'Good listener'], text: 'Felt like talking to an old friend. Made my evening.', createdAt: now - 2 * DAY },
-          { id: 'sr2', author: 'Vikram', avatarKey: 'rocket', stars: 4, tags: ['Respectful'], text: 'Very polite and easy to talk to.', createdAt: now - 3 * DAY },
-          { id: 'sr3', author: 'Sai', avatarKey: 'leaf', stars: 5, tags: ['Great advice'], text: 'Gave me really useful advice. Will call again!', createdAt: now - 5 * DAY },
-        ];
-        // Her first week, so the score has a starting point.
-        const qualityStats: QualityInput = { ...EMPTY_STATS, ratingAvg: 4.6, ratingCount: 24, repeatCallerRate: 0.3, avgCallMinutes: 9.5, activeDays: 7, calls30d: 24 };
-        set({ status: 'approved', level: 1, minutes30d: 212, rating: 4.6, earnings: seed, calls, reviews, qualityStats, rings: { rung: 26, answered: 24 } });
+type EarningRow = { id: number; reason: EarningEntry['reason']; ref_id: string | null; meta: { kind?: string; type?: 'audio' | 'video'; name?: string; gift?: Gift['id'] }; paise: number; created_at: string; available_at: string };
+
+function earningLabel(r: EarningRow): EarningLabel {
+  const m = r.meta ?? {};
+  if (r.reason === 'payout') return { kind: 'withdrawal' };
+  if (r.reason === 'gift_earning' && m.gift) return { kind: 'gift', gift: m.gift, name: m.name ?? '' };
+  if (r.reason === 'call_earning') return { kind: 'call', type: m.type ?? 'audio', name: m.name ?? '' };
+  return { kind: 'bonus' };
+}
+
+const INITIAL = {
+  status: 'none' as const,
+  decisionNote: null,
+  payoutTarget: null,
+  bio: '',
+  city: '',
+  idSummary: null,
+  online: false,
+  level: 1 as const,
+  minutes30d: 0,
+  rating: 0,
+  strikes: 0,
+  earnings: [],
+  payouts: [],
+  calls: [],
+  reviews: [],
+  qualityStats: EMPTY_STATS,
+  loaded: false,
+};
+
+export const useHost = create<HostState>()((set, get) => ({
+  ...INITIAL,
+  refresh: async () => {
+    const [{ data: me }, { data: kyc }] = await Promise.all([supabase.from('my_host').select('*').maybeSingle(), supabase.from('host_private').select('pan, aadhaar_last4').maybeSingle()]);
+    if (!me) {
+      set({ status: 'none', loaded: true });
+      return;
+    }
+    const base = {
+      status: me.approval_status as HostState['status'],
+      decisionNote: me.decision_note,
+      bio: me.bio ?? '',
+      city: me.city ?? '',
+      idSummary: kyc ? { pan: kyc.pan ? `${kyc.pan.slice(0, 2)}•••••${kyc.pan.slice(-2)}` : '', aadhaarLast4: kyc.aadhaar_last4 ?? '' } : null,
+      payoutTarget: (me.payout_kind === 'upi' ? { kind: 'upi', upiId: me.upi_id } : me.payout_kind === 'bank' ? { kind: 'bank', last4: me.bank_last4 } : null) as PayoutTarget,
+      online: me.presence !== 'offline',
+      level: (me.level_override ?? me.level) as HostState['level'],
+      minutes30d: me.minutes30d,
+      rating: Math.round(me.rating_avg * 10) / 10,
+      strikes: me.strikes,
+      qualityStats: {
+        ratingAvg: me.rating_avg,
+        ratingCount: me.rating_count,
+        repeatCallerRate: me.repeat_caller_rate,
+        avgCallMinutes: me.avg_call_minutes,
+        answerRate: me.answer_rate,
+        reportRate: me.report_rate,
+        activeDays: me.active_days,
+        calls30d: me.calls30d,
+        strikes: me.strikes,
       },
-      setOnline: (online) => set({ online }),
-      addEarning: (e, minutes = 0) => {
-        const now = Date.now();
-        set((s) => ({
-          minutes30d: s.minutes30d + minutes,
-          earnings: [{ ...e, id: `e${now}`, createdAt: now, availableAt: now + appConfig.holdDays * DAY }, ...s.earnings],
-        }));
-      },
-      addCall: (call) =>
-        set((s) => {
-          const q = s.qualityStats;
-          const n = q.calls30d + 1;
-          return {
-            calls: [{ ...call, id: `hc${call.startedAt}` }, ...s.calls],
-            qualityStats: { ...q, calls30d: n, avgCallMinutes: (q.avgCallMinutes * q.calls30d + call.durationSec / 60) / n },
-          };
-        }),
-      addReview: (review) =>
-        set((s) => {
-          const q = s.qualityStats;
-          const count = q.ratingCount + 1;
-          const ratingAvg = (q.ratingAvg * q.ratingCount + review.stars) / count;
-          return {
-            reviews: [{ ...review, id: `rv${Date.now()}`, createdAt: Date.now() }, ...s.reviews],
-            qualityStats: { ...q, ratingAvg, ratingCount: count },
-            rating: Math.round(ratingAvg * 10) / 10,
-          };
-        }),
-      recordRing: (answered) => set((s) => ({ rings: { rung: s.rings.rung + 1, answered: s.rings.answered + (answered ? 1 : 0) } })),
-      requestPayout: (amountPaise) => {
-        const { available } = hostBalances(get().earnings);
-        if (amountPaise < appConfig.minWithdrawalPaise) return { ok: false, error: 'belowMin' };
-        if (amountPaise > available) return { ok: false, error: 'aboveAvailable' };
-        const now = Date.now();
-        set((s) => ({
-          payouts: [{ id: `p${now}`, amountPaise, status: 'requested', createdAt: now }, ...s.payouts],
-          earnings: [{ id: `w${now}`, paise: -amountPaise, reason: 'payout', label: { kind: 'withdrawal' }, createdAt: now, availableAt: now }, ...s.earnings],
-        }));
-        return { ok: true };
-      },
-      reset: () => set({ status: 'none', application: null, online: false, level: 1, minutes30d: 0, rating: 0, strikes: 0, earnings: [], payouts: [], calls: [], reviews: [], qualityStats: EMPTY_STATS, rings: { rung: 0, answered: 0 } }),
-    }),
-    { name: 'host', storage: persistStorage },
-  ),
-);
+      loaded: true,
+    };
+    if (me.approval_status !== 'approved') {
+      set(base);
+      return;
+    }
+    const [{ data: earnings }, { data: payouts }, { data: calls }, { data: reviews }] = await Promise.all([
+      supabase.from('my_earnings').select('*').order('created_at', { ascending: false }).limit(200),
+      supabase.from('payout_requests').select('*').order('created_at', { ascending: false }).limit(50),
+      supabase.from('my_calls').select('*').eq('host_id', me.id).not('started_at', 'is', null).order('created_at', { ascending: false }).limit(100),
+      supabase.from('public_reviews').select('*').eq('host_id', me.id).order('created_at', { ascending: false }).limit(100),
+    ]);
+    set({
+      ...base,
+      earnings: (earnings ?? []).map((r) => {
+        const row = r as EarningRow;
+        return { id: String(row.id), paise: Number(row.paise), reason: row.reason, label: earningLabel(row), createdAt: Date.parse(row.created_at), availableAt: Date.parse(row.available_at) };
+      }),
+      payouts: (payouts ?? []).map((p) => ({ id: p.id, amountPaise: Number(p.amount_paise), status: p.status, createdAt: Date.parse(p.created_at) })),
+      calls: (calls ?? []).map((c) => {
+        const row = c as MyCallRow;
+        return { id: row.id, callerName: row.caller_name, avatarKey: row.caller_avatar ?? 'sun', type: row.type, startedAt: Date.parse(row.started_at ?? row.created_at), durationSec: callDuration(row), earnedPaise: Number(row.host_earned_paise) };
+      }),
+      reviews: (reviews ?? []).map((r) => ({ id: r.id, author: r.author, avatarKey: r.avatar_key ?? 'sun', stars: r.stars, tags: r.tags ?? [], text: r.comment ?? '', createdAt: Date.parse(r.created_at) })),
+    });
+  },
+  submitApplication: async (app) => {
+    await rpc('submit_host_application', {
+      p_display_name: app.displayName,
+      p_bio: app.bio,
+      p_city: app.city,
+      p_languages: app.languages,
+      p_pan: app.pan,
+      p_aadhaar_last4: app.aadhaarLast4,
+      p_payout_kind: app.payout.kind,
+      p_upi_id: app.payout.kind === 'upi' ? app.payout.upiId : null,
+      p_bank_account: app.payout.kind === 'bank' ? app.payout.account : null,
+      p_bank_ifsc: app.payout.kind === 'bank' ? app.payout.ifsc : null,
+      p_selfie_done: app.selfieDone,
+    });
+    await get().refresh();
+  },
+  setOnline: async (online) => {
+    set({ online });
+    try {
+      const presence = await rpc<string>('set_presence', { p_presence: online ? 'online' : 'offline' });
+      set({ online: presence !== 'offline' });
+    } catch (e) {
+      set({ online: !online });
+      throw e;
+    }
+  },
+  requestPayout: async (amountPaise) => {
+    try {
+      await rpc('request_payout', { p_amount_paise: amountPaise });
+      await get().refresh();
+      return { ok: true };
+    } catch (e) {
+      const code = errorCode(e);
+      return { ok: false, error: code === 'below_min' ? 'belowMin' : code === 'above_available' ? 'aboveAvailable' : 'network' };
+    }
+  },
+  start: (userId) => {
+    get().refresh();
+    let pending: ReturnType<typeof setTimeout> | null = null;
+    const later = () => {
+      if (pending) clearTimeout(pending);
+      pending = setTimeout(() => get().refresh(), 800);
+    };
+    const channel: RealtimeChannel = supabase
+      .channel(`host-${userId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'hosts', filter: `id=eq.${userId}` }, later)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'earnings_ledger', filter: `host_id=eq.${userId}` }, later)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'payout_requests', filter: `host_id=eq.${userId}` }, later)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'ratings', filter: `host_id=eq.${userId}` }, later)
+      .subscribe();
+    return () => {
+      if (pending) clearTimeout(pending);
+      supabase.removeChannel(channel);
+    };
+  },
+  reset: () => set(INITIAL),
+}));
 
 export function hostBalances(earnings: EarningEntry[], now: number = Date.now()) {
   let pending = 0;
@@ -187,13 +245,4 @@ export function hostBalances(earnings: EarningEntry[], now: number = Date.now())
     else pending += e.paise;
   }
   return { pending, available, lifetime, today };
-}
-
-/** True once the persisted host data has loaded (subscribe-safe, no effect needed). */
-export function useHostHydrated(): boolean {
-  return useSyncExternalStore(
-    (cb) => useHost.persist.onFinishHydration(cb),
-    () => useHost.persist.hasHydrated(),
-    () => false,
-  );
 }

@@ -55,6 +55,9 @@ export const en = {
     consent: 'By continuing you confirm you are 18 or older and agree to our Terms, Privacy Policy and Community Guidelines.',
   },
   otp: {
+    expired: 'This code has expired. Tap Resend for a new one.',
+    sendFailed: 'Couldn\'t send the code. Check the number and try again.',
+    tooMany: 'Too many attempts. Please wait a minute and try again.',
     title: 'Enter the code',
     sentTo: 'Sent to +91 {phone}.',
     demoCode: 'Demo code: {code}',
@@ -108,6 +111,8 @@ export const en = {
     welcomeCoins: 'Welcome! {n} free coins added for your first call.',
   },
   home: {
+    noHostsYetBody: 'Verified hosts appear here as soon as they\'re approved. Pull down to refresh.',
+    noHostsYetTitle: 'No hosts yet',
     namaste: 'Namaste,',
     quickMatch: 'Quick Match',
     quickMatchBody: 'Talk to someone in your language in seconds.',
@@ -153,6 +158,9 @@ export const en = {
     needCoinsVideo: 'You need at least {n} coins for a 1-minute video call.',
   },
   call: {
+    mediaInApp: 'Voice and video work in the installed app',
+    noAnswer: '{name} didn\'t answer. No coins were used.',
+    declined: '{name} can\'t take calls right now. No coins were used.',
     private: 'Private · {type}',
     ringing: 'Ringing…',
     usedLeft: '{used} used · {left} left',
@@ -256,6 +264,7 @@ export const en = {
     bonus: '{coins} + {bonus} bonus',
     totalCoins: '{n} coins',
     reason: {
+      purchase_refund: 'Purchase refunded',
       purchase: 'Coins purchased',
       call_charge: 'Call minute',
       call_refund: 'Refund',
@@ -362,7 +371,7 @@ export const en = {
       other: 'Something else',
     },
   },
-  topUp: { title: 'Add coins' },
+  topUp: { title: 'Add coins', comingSoon: 'Buying coins opens soon. Until then, our team can add coins to your wallet.' },
   quality: {
     score: 'Spotlight score',
     reachTier: 'Reach 68+ to be featured to callers.',
@@ -387,6 +396,13 @@ export const en = {
     },
   },
   kyc: {
+    rejectedBody: 'Reason from our team: {reason}. Fix the details below and submit again.',
+    rejectedTitle: 'Your application needs changes',
+    aadhaarHelp: 'Only the last 4 digits are stored. Full Aadhaar check through DigiLocker is coming soon.',
+    errAadhaar: 'Enter the last 4 digits of your Aadhaar.',
+    aadhaarLast4: 'Aadhaar: last 4 digits',
+    errCity: 'Enter your city.',
+    city: 'City',
     stepOf: 'Host verification · Step {n} of {total}',
     step1: 'Your host profile',
     step2: 'Verify your identity',
@@ -442,6 +458,7 @@ export const en = {
     approved: 'You’re verified! Welcome aboard.',
   },
   hostHome: {
+    waitingForCalls: 'Keep the app open. Calls ring here as soon as a caller picks you.',
     welcomeBack: 'Welcome back,',
     youreOnline: 'You’re online',
     youreOffline: 'You’re offline',
@@ -524,6 +541,7 @@ export const en = {
     version: '{app} Host · v1.0.0 prototype',
   },
   incoming: {
+    callerNoCoins: 'The caller ran out of coins, so the call couldn\'t start.',
     title: 'Incoming {type} call',
     prefers: 'Prefers {lang} · auto-decline in {s}s',
     decline: 'Decline',
@@ -531,6 +549,7 @@ export const en = {
     missed: 'Missed call from {name}. Missed calls lower your answer rate.',
   },
   hostCall: {
+    callerLeft: '{name} ended the call.',
     earning: 'Earning {amount} · {rate}/min',
     rules: 'Keep it friendly and respectful. Never share contact details.',
     reportCaller: 'Report caller',
@@ -550,6 +569,19 @@ export const en = {
     emptyBody: 'After each call, callers can rate you and leave a comment. They’ll show up here.',
   },
   avatar: { label: 'Avatar {name}' },
+  auth: {
+    blocked: {
+      suspended: 'Your account is suspended. Contact support if you think this is a mistake.',
+      banned: 'This account has been banned for breaking the community guidelines.',
+      notApp: 'This is an admin account. Please use the admin dashboard on the web.',
+    },
+  },
+  errors: {
+    network: 'No internet connection. Check it and try again.',
+    generic: 'Something went wrong. Please try again.',
+    alreadyInCall: 'You\'re already in a call.',
+    callOver: 'This call has already ended.',
+  },
 } as const;
 
 type Widen<T> = { [K in keyof T]: T[K] extends string ? string : Widen<T[K]> };

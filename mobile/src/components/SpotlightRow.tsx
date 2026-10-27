@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
-import { type Host, type Presence } from '@/data/mock';
+import { type Host, type Presence } from '@/data/catalog';
 import { useT } from '@/i18n';
 import { spotlightOrder } from '@/lib/quality';
 import { fonts, radius, spacing, useTheme } from '@/theme';

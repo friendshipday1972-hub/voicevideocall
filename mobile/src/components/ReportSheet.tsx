@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import { REPORT_CATEGORIES, type ReportCategory } from '@/data/mock';
+import { REPORT_CATEGORIES, type ReportCategory } from '@/data/catalog';
 import { useT } from '@/i18n';
 import { haptic } from '@/lib/haptics';
 import { useSocial } from '@/stores/social';
@@ -28,7 +28,7 @@ export function ReportSheet({ visible, onClose, targetId, targetName, sessionId,
   const { colors } = useTheme();
   const t = useT();
   const report = useSocial((s) => s.report);
-  const block = useSocial((s) => s.block);
+  const [sending, setSending] = useState(false);
   const [category, setCategory] = useState<ReportCategory | null>(null);
   const [details, setDetails] = useState('');
   const [alsoBlock, setAlsoBlock] = useState(true);
@@ -40,14 +40,22 @@ export function ReportSheet({ visible, onClose, targetId, targetName, sessionId,
     onClose();
   };
 
-  const submit = () => {
-    if (!category) return;
-    report({ targetId, sessionId, category, details });
-    if (alsoBlock) block(targetId);
-    haptic.success();
-    toast.success(alsoBlock ? t('report.doneBlocked', { name: targetName }) : t('report.done'));
-    onReported?.(alsoBlock);
-    close();
+  const submit = async () => {
+    if (!category || sending) return;
+    setSending(true);
+    try {
+      // One server call files the report (for the admin queue) and blocks, if asked.
+      await report({ targetId, sessionId, category, details, block: alsoBlock });
+      haptic.success();
+      toast.success(alsoBlock ? t('report.doneBlocked', { name: targetName }) : t('report.done'));
+      onReported?.(alsoBlock);
+      close();
+    } catch {
+      haptic.error();
+      toast.error(t('errors.network'));
+    } finally {
+      setSending(false);
+    }
   };
 
   return (
@@ -55,7 +63,7 @@ export function ReportSheet({ visible, onClose, targetId, targetName, sessionId,
       visible={visible}
       onClose={close}
       title={t('report.title', { name: targetName })}
-      footer={<Button title={t('report.submit')} variant="danger" icon="flag" disabled={!category} onPress={submit} />}>
+      footer={<Button title={t('report.submit')} variant="danger" icon="flag" disabled={!category} loading={sending} onPress={submit} />}>
       <AppText color="textSecondary" style={{ marginTop: -spacing.sm }}>
         {t('report.body')}
       </AppText>

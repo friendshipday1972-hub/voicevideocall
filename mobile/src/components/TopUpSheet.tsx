@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { formatRupees } from '@/config/appConfig';
-import { COIN_PACKS, type CoinPack } from '@/data/mock';
+import { COIN_PACKS, type CoinPack } from '@/data/catalog';
 import { useT } from '@/i18n';
 import { haptic } from '@/lib/haptics';
 import { useWallet } from '@/stores/wallet';
@@ -70,6 +70,10 @@ export function TopUpSheet({ visible, onClose, reason }: { visible: boolean; onC
       haptic.success();
       toast.success(t('wallet.added', { n: pack.coins + pack.bonus }));
       onClose();
+    } catch (e) {
+      // Play/App Store billing arrives with the payments stage; say so instead of failing silently.
+      if ((e as Error).message === 'payments_coming_soon') toast.info(t('topUp.comingSoon'));
+      else toast.error(t('errors.generic'));
     } finally {
       setBusyId(null);
     }
@@ -86,7 +90,7 @@ export function TopUpSheet({ visible, onClose, reason }: { visible: boolean; onC
         <PackCard key={p.id} pack={p} busy={busyId === p.id} onPress={() => buy(p)} />
       ))}
       <AppText variant="caption" color="textMuted" align="center">
-        {t('common.demoPurchase')}
+        {t('topUp.comingSoon')}
       </AppText>
     </Sheet>
   );

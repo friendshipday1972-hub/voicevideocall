@@ -7,7 +7,10 @@ import { AppText } from '@/components/AppText';
 import { Button } from '@/components/Button';
 import { Header, Screen } from '@/components/Layout';
 import { TextField } from '@/components/TextField';
+import { toast } from '@/components/Toast';
 import { useT } from '@/i18n';
+import { haptic } from '@/lib/haptics';
+import { useSession } from '@/stores/session';
 import { spacing, useTheme } from '@/theme';
 
 const PHONE_RE = /^[6-9]\d{9}$/;
@@ -21,14 +24,19 @@ export default function Phone() {
   const valid = PHONE_RE.test(phone);
   const error = touched && phone.length > 0 && !valid ? t('phone.invalid') : null;
 
-  const send = () => {
+  const send = async () => {
     setTouched(true);
-    if (!valid) return;
+    if (!valid || loading) return;
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
+    try {
+      await useSession.getState().sendOtp(phone);
       router.push({ pathname: '/otp', params: { phone } });
-    }, 700);
+    } catch (e) {
+      haptic.error();
+      toast.error(t((e as Error).message === 'too_many' ? 'otp.tooMany' : 'otp.sendFailed'));
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

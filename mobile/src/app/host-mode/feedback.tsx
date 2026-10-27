@@ -14,9 +14,8 @@ export default function HostFeedback() {
   const t = useT();
   const reviews = useHost((s) => s.reviews);
   const stats = useHost((s) => s.qualityStats);
-  const rings = useHost((s) => s.rings);
   const strikes = useHost((s) => s.strikes);
-  const quality = computeQuality(hostQualityInput(stats, rings, strikes));
+  const quality = computeQuality(hostQualityInput(stats, strikes));
 
   const items: ReviewItem[] = reviews.map((r) => ({ ...r, when: r.createdAt }));
   const dist = [5, 4, 3, 2, 1].map((n) => ({ n, count: reviews.filter((r) => r.stars === n).length }));

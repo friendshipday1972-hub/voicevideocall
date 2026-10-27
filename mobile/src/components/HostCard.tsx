@@ -3,7 +3,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { memo } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import { type Host, type Presence } from '@/data/mock';
+import { type Host, type Presence } from '@/data/catalog';
 import { useT } from '@/i18n';
 import { languageName } from '@/i18n/labels';
 import { fonts, radius, spacing, useTheme } from '@/theme';

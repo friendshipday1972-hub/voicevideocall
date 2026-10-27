@@ -4,9 +4,9 @@ import { useCallback, useState } from 'react';
 import { toast } from '@/components/Toast';
 import { TopUpSheet } from '@/components/TopUpSheet';
 import type { CallType } from '@/config/appConfig';
-import type { Host } from '@/data/mock';
+import type { Host } from '@/data/catalog';
 import { t } from '@/i18n';
-import { usePresence } from '@/stores/presence';
+import { usePresence } from '@/stores/hosts';
 import { useSocial } from '@/stores/social';
 import { useWallet } from '@/stores/wallet';
 
@@ -20,8 +20,8 @@ export function useStartCall() {
   const [topUp, setTopUp] = useState<string | null>(null);
 
   const start = useCallback((host: Host, type: CallType) => {
-    const presence = usePresence.getState().presence[host.id];
-    if (useSocial.getState().blocked.includes(host.id)) {
+    const presence = usePresence.getState().presence[host.id] ?? host.presence;
+    if (useSocial.getState().blocked.some((b) => b.id === host.id)) {
       toast.error(t('startCall.blocked', { name: host.name }));
       return;
     }

@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet, View } from 'react-native';
 
-import { LANGUAGES } from '@/data/mock';
+import { LANGUAGES } from '@/data/catalog';
 import { translate, useT } from '@/i18n';
 import { languageName } from '@/i18n/labels';
 import { haptic } from '@/lib/haptics';

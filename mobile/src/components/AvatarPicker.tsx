@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet, View } from 'react-native';
 
-import { AVATARS } from '@/data/mock';
+import { AVATARS } from '@/data/catalog';
 import { useT } from '@/i18n';
 import { haptic } from '@/lib/haptics';
 import { spacing, useTheme } from '@/theme';

@@ -14,13 +14,13 @@ import { HostCard } from '@/components/HostCard';
 import { EmptyState, MAX_WIDTH } from '@/components/Layout';
 import { PressableScale } from '@/components/PressableScale';
 import { SpotlightRow } from '@/components/SpotlightRow';
-import { HOSTS, LANGUAGES, type Host, type LanguageCode, type Presence } from '@/data/mock';
+import { LANGUAGES, type Host, type LanguageCode, type Presence } from '@/data/catalog';
 import { useT } from '@/i18n';
 import { languageName } from '@/i18n/labels';
 import { useStartCall } from '@/lib/useStartCall';
-import { usePresence } from '@/stores/presence';
+import { useHosts, usePresence } from '@/stores/hosts';
 import { useSession } from '@/stores/session';
-import { useSocial } from '@/stores/social';
+import { useBlockedIds, useSocial } from '@/stores/social';
 import { useWallet } from '@/stores/wallet';
 import { radius, spacing, useTheme } from '@/theme';
 
@@ -67,7 +67,9 @@ export default function Home() {
   const balance = useWallet((s) => s.balance);
   const presence = usePresence((s) => s.presence);
   const favorites = useSocial((s) => s.favorites);
-  const blocked = useSocial((s) => s.blocked);
+  const blocked = useBlockedIds();
+  const allHosts = useHosts((s) => s.hosts);
+  const hostsLoaded = useHosts((s) => s.loaded);
   const [language, setLanguage] = useState<LanguageCode | 'all'>(profile?.languages[0] ?? 'all');
   const [refreshing, setRefreshing] = useState(false);
   const { start, sheet } = useStartCall();
@@ -82,11 +84,14 @@ export default function Home() {
 
   const hosts = useMemo(
     () =>
-      HOSTS.filter((h) => !blocked.includes(h.id) && (language === 'all' || h.languages.includes(language))).sort(
-        // Available hosts first, then by Spotlight Score (featured hosts get a small boost).
-        (a, b) => ORDER[presence[a.id]] - ORDER[presence[b.id]] || b.quality.score + (b.featured ? 8 : 0) - (a.quality.score + (a.featured ? 8 : 0)),
-      ),
-    [blocked, language, presence],
+      allHosts
+        .filter((h) => !blocked.includes(h.id) && (language === 'all' || h.languages.includes(language)))
+        .sort(
+          // Available hosts first, then by Spotlight Score (featured hosts get a small boost).
+          (a, b) =>
+            ORDER[presence[a.id] ?? a.presence] - ORDER[presence[b.id] ?? b.presence] || b.quality.score + (b.featured ? 8 : 0) - (a.quality.score + (a.featured ? 8 : 0)),
+        ),
+    [allHosts, blocked, language, presence],
   );
   const onlineCount = hosts.filter((h) => presence[h.id] === 'online').length;
 
@@ -94,7 +99,7 @@ export default function Home() {
 
   const onRefresh = () => {
     setRefreshing(true);
-    setTimeout(() => setRefreshing(false), 800);
+    Promise.all([useHosts.getState().refresh(), useWallet.getState().refresh(), useSocial.getState().refresh()]).finally(() => setRefreshing(false));
   };
 
   const header = (
@@ -144,7 +149,7 @@ export default function Home() {
         keyExtractor={(h) => h.id}
         numColumns={columns}
         ListHeaderComponent={header}
-        ListEmptyComponent={<EmptyState icon="people" title={t('home.emptyTitle')} body={t('home.emptyBody')} />}
+        ListEmptyComponent={hostsLoaded ? <EmptyState icon="people" title={t(allHosts.length ? 'home.emptyTitle' : 'home.noHostsYetTitle')} body={t(allHosts.length ? 'home.emptyBody' : 'home.noHostsYetBody')} /> : null}
         columnWrapperStyle={{ gap }}
         contentContainerStyle={[styles.list, { maxWidth: WIDE_COLUMN, gap }]}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} colors={[colors.primary]} />}
@@ -154,7 +159,7 @@ export default function Home() {
         removeClippedSubviews
         renderItem={({ item, index }) => (
           <Animated.View entering={FadeInDown.delay(Math.min(index, 8) * 40).duration(320)} style={{ flex: 1 / columns }}>
-            <HostCard host={item} presence={presence[item.id]} favorite={favorites.includes(item.id)} onOpen={openHost} onCall={start} />
+            <HostCard host={item} presence={presence[item.id] ?? item.presence} favorite={favorites.includes(item.id)} onOpen={openHost} onCall={start} />
           </Animated.View>
         )}
       />

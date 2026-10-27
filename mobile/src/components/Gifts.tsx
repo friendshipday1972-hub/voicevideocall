@@ -5,7 +5,7 @@ import Animated, { useAnimatedStyle, useSharedValue, withDelay, withSequence, wi
 import { scheduleOnRN } from 'react-native-worklets';
 
 import { appConfig } from '@/config/appConfig';
-import { GIFTS, type Gift } from '@/data/mock';
+import { GIFTS, type Gift } from '@/data/catalog';
 import { useT } from '@/i18n';
 import { motion, radius, spacing, useTheme } from '@/theme';
 

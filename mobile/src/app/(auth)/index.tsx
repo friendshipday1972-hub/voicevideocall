@@ -11,7 +11,7 @@ import { Button } from '@/components/Button';
 import { Chip } from '@/components/Chip';
 import { MAX_WIDTH } from '@/components/Layout';
 import { APP_NAME } from '@/config/appConfig';
-import { LANGUAGES } from '@/data/mock';
+import { LANGUAGES } from '@/data/catalog';
 import { useT } from '@/i18n';
 import { useSession } from '@/stores/session';
 import { radius, spacing, useTheme } from '@/theme';

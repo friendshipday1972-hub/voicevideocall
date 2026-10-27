@@ -2,8 +2,9 @@
  * Billing engine (spec §7). Pure functions with no imports so they can be unit tested
  * with `node --test` and later ported 1:1 to the Supabase RPC / Edge Functions.
  *
- * In the prototype this runs on the device against a simulated wallet. In production
- * the same rules run server-side only; the client never changes balances.
+ * The live rules run in the database (`_charge_minute`, `call_tick`, `_end_call` in
+ * supabase/migrations); the app never changes balances. These mirrors stay for the unit
+ * tests and for client-side hints such as the low-balance countdown.
  */
 
 export type LedgerReason =
@@ -13,7 +14,8 @@ export type LedgerReason =
   | 'gift'
   | 'bonus'
   | 'admin_adjust'
-  | 'signup_trial';
+  | 'signup_trial'
+  | 'purchase_refund';
 
 export type LedgerEntry = {
   id: string;

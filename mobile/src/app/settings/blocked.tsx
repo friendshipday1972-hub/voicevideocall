@@ -6,7 +6,7 @@ import { HostAvatar } from '@/components/Avatar';
 import { Button } from '@/components/Button';
 import { Card, EmptyState, Header, Screen } from '@/components/Layout';
 import { toast } from '@/components/Toast';
-import { HOSTS } from '@/data/mock';
+import { hostColors } from '@/data/catalog';
 import { useT } from '@/i18n';
 import { useSocial } from '@/stores/social';
 import { spacing } from '@/theme';
@@ -15,7 +15,7 @@ export default function Blocked() {
   const t = useT();
   const blocked = useSocial((s) => s.blocked);
   const unblock = useSocial((s) => s.unblock);
-  const hosts = HOSTS.filter((h) => blocked.includes(h.id));
+  const hosts = blocked.map((b) => ({ id: b.id, name: b.name, colors: hostColors(b.id) }));
 
   return (
     <Screen>
@@ -36,8 +36,10 @@ export default function Blocked() {
                   variant="secondary"
                   size="md"
                   onPress={() => {
-                    unblock(h.id);
-                    toast.success(t('blocked.unblocked', { name: h.name }));
+                    unblock(h.id).then(
+                      () => toast.success(t('blocked.unblocked', { name: h.name })),
+                      () => toast.error(t('errors.network')),
+                    );
                   }}
                 />
               </Card>

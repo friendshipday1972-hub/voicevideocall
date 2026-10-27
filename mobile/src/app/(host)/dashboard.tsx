@@ -6,10 +6,10 @@ import Animated, { FadeIn, FadeInDown, useAnimatedStyle, withTiming } from 'reac
 
 import { AppText } from '@/components/AppText';
 import { HostAvatar, PresenceDot } from '@/components/Avatar';
-import { Button } from '@/components/Button';
 import { Card, Divider, ListRow, Screen, SectionTitle } from '@/components/Layout';
 import { PressableScale } from '@/components/PressableScale';
 import { ReviewList, SpotlightCard } from '@/components/Quality';
+import { toast } from '@/components/Toast';
 import { appConfig, formatRupees, levelRequirements } from '@/config/appConfig';
 import { useT } from '@/i18n';
 import { haptic } from '@/lib/haptics';
@@ -77,9 +77,8 @@ export default function HostDashboard() {
   const rating = useHost((s) => s.rating);
   const strikes = useHost((s) => s.strikes);
   const stats = useHost((s) => s.qualityStats);
-  const rings = useHost((s) => s.rings);
   const latest = useHost((s) => s.reviews[0]);
-  const quality = computeQuality(hostQualityInput(stats, rings, strikes));
+  const quality = computeQuality(hostQualityInput(stats, strikes));
 
   const b = hostBalances(earnings);
 
@@ -119,8 +118,11 @@ export default function HostDashboard() {
           <Switch
             value={online}
             onValueChange={(v) => {
-              setOnline(v);
               haptic.success();
+              setOnline(v).catch(() => {
+                haptic.error();
+                toast.error(t('errors.network'));
+              });
             }}
             trackColor={{ true: 'rgba(255,255,255,0.45)', false: colors.border }}
             thumbColor={online ? '#fff' : colors.surface}
@@ -132,7 +134,12 @@ export default function HostDashboard() {
 
       {online && (
         <Animated.View entering={FadeIn.duration(250)} style={{ marginTop: spacing.md }}>
-          <Button title={t('hostHome.simulate')} variant="secondary" icon="call" onPress={() => router.push('/host-mode/incoming')} />
+          <View style={[styles.waiting, { backgroundColor: colors.primarySoft }]}>
+            <Ionicons name="call" size={16} color={colors.primary} />
+            <AppText variant="caption" color="textSecondary" style={{ flex: 1 }}>
+              {t('hostHome.waitingForCalls')}
+            </AppText>
+          </View>
         </Animated.View>
       )}
 
@@ -192,6 +199,7 @@ const styles = StyleSheet.create({
   toggleCard: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.xl, borderRadius: radius.xl },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md, marginTop: spacing.lg },
   gridItem: { flexBasis: '47%', flexGrow: 1 },
+  waiting: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, padding: spacing.md, borderRadius: radius.md },
   levelBadge: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
   track: { height: 8, borderRadius: radius.pill, overflow: 'hidden' },
   fill: { height: 8, width: '100%', borderRadius: radius.pill, transformOrigin: 'left' },

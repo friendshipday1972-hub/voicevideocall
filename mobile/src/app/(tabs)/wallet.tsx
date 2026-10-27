@@ -10,7 +10,7 @@ import { Card, EmptyState, Screen, SectionTitle } from '@/components/Layout';
 import { toast } from '@/components/Toast';
 import { PackCard } from '@/components/TopUpSheet';
 import { appConfig } from '@/config/appConfig';
-import { COIN_PACKS, type CoinPack } from '@/data/mock';
+import { COIN_PACKS, type CoinPack } from '@/data/catalog';
 import { useLanguage, useT } from '@/i18n';
 import type { LedgerEntry } from '@/lib/billing';
 import { formatWhen } from '@/lib/format';
@@ -51,6 +51,9 @@ export default function Wallet() {
       await purchase(pack);
       haptic.success();
       toast.success(t('wallet.added', { n: pack.coins + pack.bonus }));
+    } catch (e) {
+      if ((e as Error).message === 'payments_coming_soon') toast.info(t('topUp.comingSoon'));
+      else toast.error(t('errors.generic'));
     } finally {
       setBusy(null);
     }

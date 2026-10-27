@@ -1,5 +1,4 @@
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, BackHandler, StyleSheet, View } from 'react-native';
@@ -7,96 +6,109 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppText } from '@/components/AppText';
 import { UserAvatar } from '@/components/Avatar';
+import { CallMedia } from '@/components/CallMedia';
 import { GiftBurst } from '@/components/Gifts';
 import { IconButton } from '@/components/IconButton';
 import { MAX_WIDTH } from '@/components/Layout';
 import { ReportSheet } from '@/components/ReportSheet';
 import { toast } from '@/components/Toast';
 import { appConfig, formatRupees } from '@/config/appConfig';
-import { GIFTS, RATING_TAGS, type Gift } from '@/data/mock';
+import { GIFTS, avatarByKey, type Gift } from '@/data/catalog';
 import { useT } from '@/i18n';
 import { hostEarningPerMinutePaise } from '@/lib/billing';
+import { fetchCall, watchCall, watchGifts, type LiveCall } from '@/lib/calls';
 import { formatDuration } from '@/lib/format';
 import { haptic } from '@/lib/haptics';
+import { rpc } from '@/lib/supabase';
 import { useHost } from '@/stores/host';
 import { fonts, radius, spacing, useTheme } from '@/theme';
 
-const FEEDBACK = ['Such a lovely conversation, thank you!', 'Really good listener. Made my day.', 'Fun and respectful. Will call again.', 'Gave me great advice.', ''];
+const TICK_MS = 15_000;
 
-/** Demo stand-in for the caller's post-call rating (mostly positive, like real traffic). */
-function simulatedReview(callerName: string, avatarKey: string) {
-  const r = Math.random();
-  const stars = r < 0.6 ? 5 : r < 0.9 ? 4 : 3;
-  const tags = [...RATING_TAGS].sort(() => Math.random() - 0.5).slice(0, stars >= 4 ? 2 : 1);
-  return { author: callerName, avatarKey, stars, tags, text: FEEDBACK[Math.floor(Math.random() * FEEDBACK.length)] };
-}
-
-const giftPaise = (g: Gift) => Math.floor((g.coins * appConfig.coinValuePaise * appConfig.giftShareBps) / 10_000);
-
-/** Host side of a call: timer + live earnings (credited per started minute, like the caller is billed). */
+/** Host side of a call: timer, live earnings from the server, gifts as they arrive. */
 export default function HostCall() {
   const { colors } = useTheme();
   const t = useT();
-  const [reportOpen, setReportOpen] = useState(false);
   const insets = useSafeAreaInsets();
-  const { name = '', avatar, type = 'audio' } = useLocalSearchParams<{ name?: string; avatar?: string; type?: 'audio' | 'video' }>();
-  const level = useHost((s) => s.level);
-  const addEarning = useHost((s) => s.addEarning);
-  const addCall = useHost((s) => s.addCall);
-  const addReview = useHost((s) => s.addReview);
-  const [gift, setGift] = useState<(Gift & { key: number }) | null>(null);
-  const [giftTotal, setGiftTotal] = useState(0);
+  const { sessionId } = useLocalSearchParams<{ sessionId: string }>();
+  const [call, setCall] = useState<LiveCall | null>(null);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [gift, setGift] = useState<(Gift & { key: number; paise: number }) | null>(null);
+  const [giftPaise, setGiftPaise] = useState(0);
   const clearGift = useCallback(() => setGift(null), []);
   const [elapsed, setElapsed] = useState(0);
   const [muted, setMuted] = useState(false);
-  const [startedAt] = useState(() => Date.now());
+  const [speaker, setSpeaker] = useState(true);
+  const [cameraOff, setCameraOff] = useState(false);
+  const [frontCamera, setFrontCamera] = useState(true);
   const ended = useRef(false);
 
-  const perMinute = hostEarningPerMinutePaise({ ratePerMin: appConfig.rates[type], coinValuePaise: appConfig.coinValuePaise, hostShareBps: appConfig.hostShareBpsByLevel[level] });
-  const minutes = Math.floor(elapsed / 60) + 1;
-  const earned = (elapsed < appConfig.refundUnderSeconds ? 0 : minutes * perMinute) + giftTotal;
-
   useEffect(() => {
-    const id = setInterval(() => setElapsed(Math.floor((Date.now() - startedAt) / 1000)), 1000);
-    return () => clearInterval(id);
-  }, [startedAt]);
-
-  // Demo: the caller sends a gift about 20 seconds in. With the backend this arrives as a realtime event.
-  useEffect(() => {
-    const id = setTimeout(() => {
-      if (ended.current) return;
-      const g = GIFTS[Math.floor(Math.random() * 3)];
-      const paise = giftPaise(g);
-      addEarning({ paise, reason: 'gift_earning', label: { kind: 'gift', gift: g.id, name } });
-      setGiftTotal((t) => t + paise);
-      setGift({ ...g, key: Date.now() });
+    if (!sessionId) return;
+    fetchCall(sessionId).then((c) => c && setCall((prev) => (prev ? { ...c, ...prev } : c)));
+    const stopCall = watchCall(sessionId, (update) => setCall((prev) => update(prev)));
+    const stopGifts = watchGifts(sessionId, (g) => {
+      const meta = GIFTS.find((x) => x.id === g.giftId);
+      setGiftPaise((p) => p + g.hostEarnedPaise);
+      if (meta) setGift({ ...meta, key: Date.now(), paise: g.hostEarnedPaise });
       haptic.success();
-    }, 20_000);
-    return () => clearTimeout(id);
-  }, [addEarning, name]);
+    });
+    return () => {
+      stopCall();
+      stopGifts();
+    };
+  }, [sessionId]);
 
-  const end = () => {
-    if (ended.current) return;
-    ended.current = true;
-    const sec = Math.floor((Date.now() - startedAt) / 1000);
-    const paise = sec < appConfig.refundUnderSeconds ? 0 : (Math.floor(sec / 60) + 1) * perMinute;
-    addCall({ callerName: name, avatarKey: avatar ?? 'sun', type, startedAt, durationSec: sec, earnedPaise: paise });
-    if (paise > 0) {
-      addEarning({ paise, reason: 'call_earning', label: { kind: 'call', type, name } }, Math.ceil(sec / 60));
-      toast.success(t('hostCall.earned', { amount: formatRupees(paise), days: appConfig.holdDays }));
-    } else {
-      toast.info(t('hostCall.tooShort'));
+  const finish = useCallback(
+    (summary: { duration: number; earned: number }) => {
+      if (ended.current) return;
+      ended.current = true;
+      if (summary.earned > 0) toast.success(t('hostCall.earned', { amount: formatRupees(summary.earned), days: appConfig.holdDays }));
+      else toast.info(t('hostCall.tooShort'));
+      useHost.getState().refresh();
+      haptic.tap();
+      router.back();
+    },
+    [t],
+  );
+
+  // The caller hung up, ran out of coins, or the network dropped: the server ended it.
+  useEffect(() => {
+    if (call && call.state !== 'active' && call.state !== 'ringing') {
+      const duration = call.startedAt && call.endedAt ? Math.round((call.endedAt - call.startedAt) / 1000) : 0;
+      if (call.endReason === 'caller_hangup' || call.endReason === 'low_balance') toast.info(t('hostCall.callerLeft', { name: call.callerName }));
+      finish({ duration, earned: call.hostEarnedPaise + giftPaise });
     }
-    if (sec >= appConfig.refundUnderSeconds) {
-      // The caller's rating arrives a moment after the call, like in the live app.
-      const review = simulatedReview(name, avatar ?? 'sun');
-      setTimeout(() => {
-        addReview(review);
-        toast.info(t('hostCall.rated', { name, n: review.stars }));
-      }, 3500);
+    // giftPaise only adds to the closing message
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [call?.state, finish]);
+
+  // Heartbeat from her side too, so the call stays alive if the caller's network is patchy.
+  useEffect(() => {
+    if (!sessionId) return;
+    const tick = () => rpc('call_tick', { p_session: sessionId }).catch(() => {});
+    const id = setInterval(tick, TICK_MS);
+    return () => clearInterval(id);
+  }, [sessionId]);
+
+  useEffect(() => {
+    if (!call?.startedAt) return;
+    const started = call.startedAt;
+    const update = () => setElapsed(Math.max(0, Math.floor((Date.now() - started) / 1000)));
+    update();
+    const id = setInterval(update, 1000);
+    return () => clearInterval(id);
+  }, [call?.startedAt]);
+
+  const end = async () => {
+    if (!sessionId || ended.current) return;
+    try {
+      const r = await rpc<{ duration_sec: number }>('end_call', { p_session: sessionId });
+      const latest = await fetchCall(sessionId);
+      finish({ duration: r.duration_sec, earned: (latest?.hostEarnedPaise ?? 0) + giftPaise });
+    } catch {
+      finish({ duration: elapsed, earned: 0 });
     }
-    haptic.tap();
-    router.back();
   };
 
   const confirmEnd = () =>
@@ -113,12 +125,32 @@ export default function HostCall() {
     return () => sub.remove();
   });
 
+  const isVideo = call?.type === 'video';
+  const perMinute = call ? hostEarningPerMinutePaise({ ratePerMin: call.rate, coinValuePaise: call.coinValuePaise, hostShareBps: call.hostShareBps }) : 0;
+  const earned = (call?.hostEarnedPaise ?? 0) + giftPaise;
+  const name = call?.callerName ?? '';
+
   return (
     <View style={styles.flex}>
-      <LinearGradient colors={colors.gradientCall} style={StyleSheet.absoluteFill} />
+      {call?.state === 'active' ? (
+        <CallMedia
+          sessionId={call.id}
+          channel={call.agoraChannel}
+          video={isVideo}
+          muted={muted}
+          speaker={speaker}
+          cameraOff={cameraOff}
+          frontCamera={frontCamera}
+          remoteName={name}
+          remoteColors={avatarByKey(call.callerAvatar).colors}
+          selfTop={insets.top + 72}
+        />
+      ) : (
+        <View style={[StyleSheet.absoluteFill, { backgroundColor: '#0B0710' }]} />
+      )}
       <View style={[styles.flex, styles.column, { paddingTop: insets.top + spacing.lg, paddingBottom: insets.bottom + spacing.xl }]}>
         <View style={styles.center}>
-          <UserAvatar avatarKey={avatar} size={128} />
+          {!isVideo && <UserAvatar avatarKey={call?.callerAvatar ?? undefined} size={128} />}
           <AppText variant="h1" style={{ color: '#fff', marginTop: spacing.lg }}>
             {name}
           </AppText>
@@ -137,13 +169,32 @@ export default function HostCall() {
         </View>
 
         <View style={styles.controls}>
-          <IconButton icon={muted ? 'mic-off' : 'mic'} label={muted ? t('call.unmute') : t('call.mute')} size={60} background={muted ? '#fff' : 'rgba(255,255,255,0.16)'} color={muted ? '#0B0710' : '#fff'} onPress={() => setMuted((m) => !m)} />
+          <IconButton icon={muted ? 'mic-off' : 'mic'} label={muted ? t('call.unmute') : t('call.mute')} size={56} background={muted ? '#fff' : 'rgba(255,255,255,0.16)'} color={muted ? '#0B0710' : '#fff'} onPress={() => setMuted((m) => !m)} />
+          {isVideo ? (
+            <>
+              <IconButton icon={cameraOff ? 'videocam-off' : 'videocam'} label={cameraOff ? t('call.cameraOn') : t('call.cameraOff')} size={56} background={cameraOff ? '#fff' : 'rgba(255,255,255,0.16)'} color={cameraOff ? '#0B0710' : '#fff'} onPress={() => setCameraOff((c) => !c)} />
+              <IconButton icon="camera-reverse" label={t('call.flip')} size={56} background="rgba(255,255,255,0.16)" color="#fff" onPress={() => setFrontCamera((f) => !f)} />
+            </>
+          ) : (
+            <IconButton icon={speaker ? 'volume-high' : 'volume-medium'} label={t('call.speaker')} size={56} background={speaker ? '#fff' : 'rgba(255,255,255,0.16)'} color={speaker ? '#0B0710' : '#fff'} onPress={() => setSpeaker((s) => !s)} />
+          )}
           <IconButton icon="call" label={t('call.endCall')} size={72} background={colors.danger} color="#fff" onPress={confirmEnd} iconRotate="135deg" />
-          <IconButton icon="flag" label={t('hostCall.reportCaller')} size={60} background="rgba(255,255,255,0.16)" color="#fff" onPress={() => setReportOpen(true)} />
+          <IconButton icon="flag" label={t('hostCall.reportCaller')} size={56} background="rgba(255,255,255,0.16)" color="#fff" onPress={() => setReportOpen(true)} />
         </View>
       </View>
-      {gift && <GiftBurst gift={gift} label={t('hostCall.giftReceived', { name, gift: t(`gifts.${gift.id}`), amount: formatRupees(giftPaise(gift)) })} onDone={clearGift} />}
-      <ReportSheet visible={reportOpen} onClose={() => setReportOpen(false)} targetId={`caller:${name}`} targetName={name || t('hostCall.caller')} onReported={(blocked) => blocked && end()} />
+      {gift && <GiftBurst gift={gift} label={t('hostCall.giftReceived', { name, gift: t(`gifts.${gift.id}`), amount: formatRupees(gift.paise) })} onDone={clearGift} />}
+      {call && (
+        <ReportSheet
+          visible={reportOpen}
+          onClose={() => setReportOpen(false)}
+          targetId={call.callerId}
+          targetName={name || t('hostCall.caller')}
+          sessionId={call.id}
+          onReported={(blocked) => {
+            if (blocked) rpc('end_call', { p_session: call.id, p_reason: 'moderation' }).finally(() => finish({ duration: elapsed, earned }));
+          }}
+        />
+      )}
     </View>
   );
 }

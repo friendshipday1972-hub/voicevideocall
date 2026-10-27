@@ -11,7 +11,7 @@ import { PressableScale } from '@/components/PressableScale';
 import { TextField } from '@/components/TextField';
 import { toast } from '@/components/Toast';
 import { appConfig, formatRupees, levelRequirements } from '@/config/appConfig';
-import { LANGUAGES, type LanguageCode } from '@/data/mock';
+import { LANGUAGES, type LanguageCode } from '@/data/catalog';
 import { t as tNow, useT } from '@/i18n';
 import { languageName } from '@/i18n/labels';
 import { signOutAndReset } from '@/lib/account';
@@ -72,7 +72,6 @@ function VerifyTile({ title, body, done, onPress, icon }: { title: string; body:
 function Pending() {
 const { colors } = useTheme();
 const t = useT();
-  const simulateApproval = useHost((s) => s.simulateApproval);
   useBackHandler(() => {
     confirmLeave();
     return true;
@@ -87,15 +86,6 @@ const t = useT();
     <Screen
       footer={
         <View style={{ gap: spacing.sm }}>
-          <Button
-            title={t('kyc.simulate')}
-            icon="flash"
-            onPress={() => {
-              simulateApproval();
-              haptic.success();
-              toast.success(t('kyc.approved'));
-            }}
-          />
           <Button title={t('common.logout')} variant="ghost" size="md" onPress={confirmLeave} />
         </View>
       }>
@@ -130,7 +120,11 @@ export default function HostKyc() {
 const { colors } = useTheme();
 const t = useT();
   const status = useHost((s) => s.status);
+  const decisionNote = useHost((s) => s.decisionNote);
   const submitApplication = useHost((s) => s.submitApplication);
+  const [sending, setSending] = useState(false);
+  const [city, setCity] = useState('');
+  const [aadhaar4, setAadhaar4] = useState('');
   const profile = useSession((s) => s.profile);
 
   const [step, setStep] = useState(0);
@@ -139,7 +133,6 @@ const t = useT();
   const [bio, setBio] = useState('');
   const [langs, setLangs] = useState<LanguageCode[]>(profile?.languages ?? []);
   const [pan, setPan] = useState('');
-  const [aadhaarDone, setAadhaarDone] = useState(false);
   const [selfieDone, setSelfieDone] = useState(false);
   const [payoutKind, setPayoutKind] = useState<'upi' | 'bank'>('upi');
   const [upi, setUpi] = useState('');
@@ -165,12 +158,14 @@ const t = useT();
     bio: bio.trim().length < 20 ? t('kyc.errBio') : null,
     langs: langs.length === 0 ? t('kyc.errLangs') : null,
     pan: !PAN_RE.test(pan) ? t('kyc.errPan') : null,
+    aadhaar: !/^\d{4}$/.test(aadhaar4) ? t('kyc.errAadhaar') : null,
+    city: city.trim().length < 2 ? t('kyc.errCity') : null,
     upi: payoutKind === 'upi' && !UPI_RE.test(upi) ? t('kyc.errUpi') : null,
     account: payoutKind === 'bank' && !/^\d{9,18}$/.test(account) ? t('kyc.errAccount') : null,
     ifsc: payoutKind === 'bank' && !IFSC_RE.test(ifsc) ? t('kyc.errIfsc') : null,
   };
   const stepValid =
-    step === 0 ? !errors.name && !errors.bio && !errors.langs : step === 1 ? !errors.pan && aadhaarDone && selfieDone : !errors.upi && !errors.account && !errors.ifsc && agree;
+    step === 0 ? !errors.name && !errors.bio && !errors.langs && !errors.city : step === 1 ? !errors.pan && !errors.aadhaar && selfieDone : !errors.upi && !errors.account && !errors.ifsc && agree;
   const show = (e: string | null) => (submitted ? e : null);
 
   const next = () => {
@@ -178,18 +173,26 @@ const t = useT();
     if (!stepValid) return haptic.warning();
     setSubmitted(false);
     if (step < STEPS.length - 1) return setStep(step + 1);
+    setSending(true);
     submitApplication({
       displayName: name.trim(),
       bio: bio.trim(),
+      city: city.trim(),
       languages: langs,
       pan,
-      aadhaarLast4: '4821',
+      aadhaarLast4: aadhaar4,
       selfieDone,
       payout: payoutKind === 'upi' ? { kind: 'upi', upiId: upi } : { kind: 'bank', account, ifsc },
-      agreedAt: Date.now(),
-    });
-    haptic.success();
-    toast.success(t('kyc.submitted'));
+    })
+      .then(() => {
+        haptic.success();
+        toast.success(t('kyc.submitted'));
+      })
+      .catch(() => {
+        haptic.error();
+        toast.error(t('errors.generic'));
+      })
+      .finally(() => setSending(false));
   };
 
   const wait = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
@@ -199,7 +202,7 @@ const t = useT();
       footer={
         <View style={{ flexDirection: 'row', gap: spacing.md }}>
           {step > 0 && <Button title={t('common.back')} variant="ghost" onPress={() => setStep(step - 1)} style={{ flex: 1 }} />}
-          <Button title={step === STEPS.length - 1 ? t('kyc.submit') : t('common.continue')} onPress={next} style={{ flex: 2 }} />
+          <Button title={step === STEPS.length - 1 ? t('kyc.submit') : t('common.continue')} onPress={next} style={{ flex: 2 }} loading={sending} />
         </View>
       }>
       <View style={styles.top}>
@@ -226,7 +229,18 @@ const t = useT();
               {t('kyc.earnBody', { gift: appConfig.giftShareBps / 100, min: formatRupees(appConfig.minWithdrawalPaise) })}
             </AppText>
           </Card>
+          {status === 'rejected' && (
+            <Card style={{ gap: spacing.xs, borderColor: colors.danger }}>
+              <AppText variant="h3" color="danger">
+                {t('kyc.rejectedTitle')}
+              </AppText>
+              <AppText variant="caption" color="textSecondary">
+                {t('kyc.rejectedBody', { reason: decisionNote ?? '—' })}
+              </AppText>
+            </Card>
+          )}
           <TextField label={t('kyc.hostName')} required value={name} onChangeText={setName} maxLength={24} error={show(errors.name)} />
+          <TextField label={t('kyc.city')} required value={city} onChangeText={setCity} maxLength={40} error={show(errors.city)} />
           <TextField label={t('kyc.about')} required value={bio} onChangeText={setBio} multiline maxLength={200} placeholder={t('kyc.aboutPlaceholder')} error={show(errors.bio)} helper={`${bio.length}/200`} style={{ minHeight: 88, textAlignVertical: 'top' }} />
           <View style={{ gap: spacing.sm }}>
             <AppText variant="label" color="textSecondary">
@@ -250,17 +264,7 @@ const t = useT();
         <Animated.View key="h1" entering={FadeInRight.duration(260)} exiting={FadeOutLeft.duration(150)} style={{ gap: spacing.lg }}>
           <AppText color="textSecondary">{t('kyc.idBody')}</AppText>
           <TextField label={t('kyc.pan')} required value={pan} onChangeText={(v) => setPan(v.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10))} autoCapitalize="characters" placeholder="ABCDE1234F" error={show(errors.pan)} />
-          <VerifyTile
-            icon="id-card"
-            title={t('kyc.aadhaar')}
-            body={aadhaarDone ? t('kyc.aadhaarDone', { last4: '4821' }) : t('kyc.aadhaarBody')}
-            done={aadhaarDone}
-            onPress={async () => {
-              await wait(1400);
-              setAadhaarDone(true);
-              haptic.success();
-            }}
-          />
+          <TextField label={t('kyc.aadhaarLast4')} required value={aadhaar4} onChangeText={(v) => setAadhaar4(v.replace(/\D/g, '').slice(0, 4))} keyboardType="number-pad" maxLength={4} placeholder="1234" error={show(errors.aadhaar)} helper={t('kyc.aadhaarHelp')} />
           <VerifyTile
             icon="happy"
             title={t('kyc.selfie')}
@@ -272,7 +276,7 @@ const t = useT();
               haptic.success();
             }}
           />
-          {submitted && (!aadhaarDone || !selfieDone) && (
+          {submitted && !selfieDone && (
             <AppText variant="caption" color="danger">
               {t('kyc.bothChecks')}
             </AppText>

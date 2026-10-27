@@ -10,7 +10,7 @@ import { Chip } from '@/components/Chip';
 import { Header, Screen, SectionTitle } from '@/components/Layout';
 import { TextField } from '@/components/TextField';
 import { toast } from '@/components/Toast';
-import { LANGUAGES, type LanguageCode } from '@/data/mock';
+import { LANGUAGES, type LanguageCode } from '@/data/catalog';
 import { useT } from '@/i18n';
 import { languageName } from '@/i18n/labels';
 import { haptic } from '@/lib/haptics';

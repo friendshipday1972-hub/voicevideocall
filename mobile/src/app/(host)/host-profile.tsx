@@ -12,7 +12,7 @@ import { CoinIcon } from '@/components/CoinBadge';
 import { LanguageSheet } from '@/components/LanguageSheet';
 import { Card, Divider, ListRow, Screen, SectionTitle } from '@/components/Layout';
 import { APP_NAME, appConfig, levelRequirements } from '@/config/appConfig';
-import { LANGUAGES } from '@/data/mock';
+import { LANGUAGES } from '@/data/catalog';
 import { useT } from '@/i18n';
 import { languageName } from '@/i18n/labels';
 import { signOutAndReset } from '@/lib/account';
@@ -30,11 +30,13 @@ export default function HostProfile() {
   const phone = useSession((s) => s.phone);
   const notifications = useSession((s) => s.notifications);
   const setNotification = useSession((s) => s.setNotification);
-  const app = useHost((s) => s.application);
+  const bio = useHost((s) => s.bio);
+  const target = useHost((s) => s.payoutTarget);
+  const idSummary = useHost((s) => s.idSummary);
   const level = useHost((s) => s.level);
 
-  const name = app?.displayName ?? profile?.displayName ?? '';
-  const payout = app?.payout.kind === 'upi' ? `UPI · ${app.payout.upiId}` : app ? `Bank · A/c ••${app.payout.account.slice(-4)}` : '—';
+  const name = profile?.displayName ?? '';
+  const payout = target?.kind === 'upi' ? `UPI · ${target.upiId}` : target ? `Bank · A/c ••${target.last4}` : '—';
   const share = levelRequirements[level - 1].share;
 
   const logout = () =>
@@ -65,13 +67,13 @@ export default function HostProfile() {
                 {t('hostProfileTab.share', { n: level, pct: share })}
               </AppText>
             </View>
-            {app?.bio ? (
+            {bio ? (
               <AppText color="textSecondary" align="center">
-                {app.bio}
+                {bio}
               </AppText>
             ) : null}
             <View style={styles.chips}>
-              {(app?.languages ?? profile?.languages ?? []).map((l) => (
+              {(profile?.languages ?? []).map((l) => (
                 <Chip key={l} label={languageName(t, l)} size="sm" icon="language" />
               ))}
             </View>
@@ -103,7 +105,7 @@ export default function HostProfile() {
 
       <SectionTitle title={t('hostProfileTab.verification')} />
       <Card style={{ paddingVertical: spacing.xs }}>
-        <ListRow icon="id-card-outline" title={t('hostProfileTab.identity')} subtitle={t('hostProfileTab.identitySub', { pan: `${app?.pan.slice(0, 2) ?? ''}•••••${app?.pan.slice(-2) ?? ''}`, aadhaar: app?.aadhaarLast4 ?? '' })} right={<Ionicons name="checkmark-circle" size={22} color={colors.success} />} />
+        <ListRow icon="id-card-outline" title={t('hostProfileTab.identity')} subtitle={t('hostProfileTab.identitySub', { pan: idSummary?.pan ?? '', aadhaar: idSummary?.aadhaarLast4 ?? '' })} right={<Ionicons name="checkmark-circle" size={22} color={colors.success} />} />
         <Divider />
         <ListRow icon="wallet-outline" title={t('hostProfileTab.payout')} subtitle={payout} />
         <Divider />

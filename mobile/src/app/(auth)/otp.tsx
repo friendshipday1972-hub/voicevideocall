@@ -13,13 +13,11 @@ import { useSession } from '@/stores/session';
 import { fonts, radius, spacing, useTheme } from '@/theme';
 
 const LENGTH = 6;
-const DEMO_CODE = '123456';
 const RESEND_SECONDS = 30;
 
 export default function Otp() {
   const { colors } = useTheme();
   const { phone } = useLocalSearchParams<{ phone: string }>();
-  const signIn = useSession((s) => s.signIn);
   const t = useT();
   const [code, setCode] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -34,21 +32,20 @@ export default function Otp() {
     return () => clearTimeout(id);
   }, [seconds]);
 
-  const verify = (value: string) => {
-    if (value.length !== LENGTH) return;
+  const verify = async (value: string) => {
+    if (value.length !== LENGTH || loading) return;
     setLoading(true);
-    setTimeout(() => {
+    try {
+      await useSession.getState().verifyOtp(phone ?? '', value);
+      haptic.success();
+    } catch (e) {
+      haptic.error();
+      setError(t((e as Error).message === 'otp_expired' ? 'otp.expired' : 'otp.wrong'));
+      shake.set(withSequence(withTiming(-8, { duration: 50 }), withTiming(8, { duration: 50 }), withTiming(-6, { duration: 50 }), withTiming(0, { duration: 50 })));
+      setCode('');
+    } finally {
       setLoading(false);
-      if (value === DEMO_CODE) {
-        haptic.success();
-        signIn(phone ?? '');
-      } else {
-        haptic.error();
-        setError(t('otp.wrong'));
-        shake.set(withSequence(withTiming(-8, { duration: 50 }), withTiming(8, { duration: 50 }), withTiming(-6, { duration: 50 }), withTiming(0, { duration: 50 })));
-        setCode('');
-      }
-    }, 600);
+    }
   };
 
   const shakeStyle = useAnimatedStyle(() => ({ transform: [{ translateX: shake.value }] }));
@@ -59,7 +56,7 @@ export default function Otp() {
       <Animated.View entering={FadeInDown.duration(350)} style={{ gap: spacing.sm, marginBottom: spacing.xl }}>
         <AppText variant="h1">{t('otp.title')}</AppText>
         <AppText color="textSecondary">
-          {t('otp.sentTo', { phone: phone ?? '' })} <AppText color="primary">{t('otp.demoCode', { code: DEMO_CODE })}</AppText>
+          {t('otp.sentTo', { phone: phone ?? '' })}
         </AppText>
       </Animated.View>
 
@@ -115,7 +112,10 @@ export default function Otp() {
             hitSlop={12}
             onPress={() => {
               setSeconds(RESEND_SECONDS);
-              toast.info(t('otp.resent'));
+              useSession.getState().sendOtp(phone ?? '').then(
+                () => toast.info(t('otp.resent')),
+                () => toast.error(t('otp.sendFailed')),
+              );
             }}
             accessibilityRole="button">
             <AppText variant="label" color="primary">

@@ -11,7 +11,7 @@ import { PressableScale } from '@/components/PressableScale';
 import { APP_NAME } from '@/config/appConfig';
 
 import { LanguageSheet } from '@/components/LanguageSheet';
-import { LANGUAGES } from '@/data/mock';
+import { LANGUAGES } from '@/data/catalog';
 import { useT } from '@/i18n';
 import { languageName } from '@/i18n/labels';
 import { signOutAndReset } from '@/lib/account';

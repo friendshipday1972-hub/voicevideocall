@@ -4,7 +4,7 @@ import { useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';
 
-import { avatarByKey, type Host, type Presence } from '@/data/mock';
+import { avatarByKey, type Host, type Presence } from '@/data/catalog';
 import { useT } from '@/i18n';
 import { fonts, useTheme } from '@/theme';
 

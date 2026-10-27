@@ -11,14 +11,14 @@ import { HostAvatar, UserAvatar } from '@/components/Avatar';
 import { Button } from '@/components/Button';
 import { IconButton } from '@/components/IconButton';
 import { MAX_WIDTH } from '@/components/Layout';
-import { HOSTS, type Host } from '@/data/mock';
+import type { Host } from '@/data/catalog';
 import { useT } from '@/i18n';
 import { languageName } from '@/i18n/labels';
 import { haptic } from '@/lib/haptics';
 import { useStartCall } from '@/lib/useStartCall';
-import { usePresence } from '@/stores/presence';
+import { useHosts, usePresence } from '@/stores/hosts';
 import { useSession } from '@/stores/session';
-import { useSocial } from '@/stores/social';
+import { useBlockedIds } from '@/stores/social';
 import { motion, radius, spacing, useTheme } from '@/theme';
 
 const SEARCH_MS = 2200;
@@ -29,8 +29,8 @@ function RadarRing({ v, color }: { v: SharedValue<number>; color: string }) {
 }
 
 /** Smart ranking (spec §12.10): language match + Spotlight Score (rating, returning callers, reliability, safety). Never by appearance. */
-function pickBest(lang: string, exclude: string[], presence: Record<string, string>, blocked: string[], myLangs: string[]): Host | null {
-  const pool = HOSTS.filter((h) => presence[h.id] === 'online' && !blocked.includes(h.id) && !exclude.includes(h.id));
+function pickBest(hosts: Host[], lang: string, exclude: string[], presence: Record<string, string>, blocked: string[], myLangs: string[]): Host | null {
+  const pool = hosts.filter((h) => presence[h.id] === 'online' && !blocked.includes(h.id) && !exclude.includes(h.id));
   const score = (h: Host) =>
     (lang !== 'all' && h.languages.includes(lang as never) ? 100 : 0) + (h.languages.some((l) => myLangs.includes(l)) ? 40 : 0) + h.quality.score + (h.featured ? 8 : 0) + Math.random() * 8;
   return pool.sort((a, b) => score(b) - score(a))[0] ?? null;
@@ -41,7 +41,7 @@ export default function QuickMatch() {
   const insets = useSafeAreaInsets();
   const { lang = 'all' } = useLocalSearchParams<{ lang?: string }>();
   const profile = useSession((s) => s.profile);
-  const blocked = useSocial((s) => s.blocked);
+  const blocked = useBlockedIds();
   const { start, sheet } = useStartCall();
   const t = useT();
   const [match, setMatch] = useState<Host | null | undefined>(undefined);
@@ -60,7 +60,7 @@ export default function QuickMatch() {
   useEffect(() => {
     if (match !== undefined) return;
     const id = setTimeout(() => {
-      const best = pickBest(lang, skipped, usePresence.getState().presence, blocked, profile?.languages ?? []);
+      const best = pickBest(useHosts.getState().hosts, lang, skipped, usePresence.getState().presence, blocked, profile?.languages ?? []);
       setMatch(best);
       if (best) haptic.success();
       else haptic.warning();
