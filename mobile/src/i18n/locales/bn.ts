@@ -584,4 +584,8 @@ export const bn: Dict = {
     alreadyInCall: 'আপনি ইতিমধ্যে একটি কলে আছেন।',
     callOver: 'এই কলটি আগেই শেষ হয়ে গেছে।',
   },
+  push: {
+    channelCalls: 'ইনকামিং কল',
+    channelUpdates: 'আপডেট',
+  },
 };

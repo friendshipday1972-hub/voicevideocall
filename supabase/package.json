@@ -7,7 +7,8 @@
     "test:db": "node --env-file=../.env tests/billing.test.mjs",
     "test:e2e": "node --env-file=../.env tests/e2e.test.mjs",
     "create-admin": "node --env-file=../.env scripts/create-admin.mjs",
-    "configure-auth": "node --env-file=../.env scripts/configure-auth.mjs"
+    "configure-auth": "node --env-file=../.env scripts/configure-auth.mjs",
+    "setup-push": "node --env-file=../.env scripts/setup-push.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.118.0",

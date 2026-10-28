@@ -584,4 +584,8 @@ export const hi: Dict = {
     alreadyInCall: 'आप पहले से एक कॉल पर हैं।',
     callOver: 'यह कॉल पहले ही खत्म हो चुकी है।',
   },
+  push: {
+    channelCalls: 'आने वाली कॉल',
+    channelUpdates: 'अपडेट',
+  },
 };

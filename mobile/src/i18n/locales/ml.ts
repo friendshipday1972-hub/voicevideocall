@@ -584,4 +584,8 @@ export const ml: Dict = {
     alreadyInCall: 'നിങ്ങൾ ഇപ്പോൾ തന്നെ ഒരു കോളിലാണ്.',
     callOver: 'ഈ കോൾ ഇതിനകം അവസാനിച്ചു.',
   },
+  push: {
+    channelCalls: 'ഇൻകമിംഗ് കോളുകൾ',
+    channelUpdates: 'അപ്‌ഡേറ്റുകൾ',
+  },
 };

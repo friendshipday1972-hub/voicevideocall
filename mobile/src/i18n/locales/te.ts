@@ -584,4 +584,8 @@ export const te: Dict = {
     alreadyInCall: 'మీరు ఇప్పటికే ఒక కాల్‌లో ఉన్నారు.',
     callOver: 'ఈ కాల్ ఇప్పటికే ముగిసింది.',
   },
+  push: {
+    channelCalls: 'ఇన్‌కమింగ్ కాల్స్',
+    channelUpdates: 'అప్‌డేట్స్',
+  },
 };

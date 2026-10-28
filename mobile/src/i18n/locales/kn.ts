@@ -584,4 +584,8 @@ export const kn: Dict = {
     alreadyInCall: 'ನೀವು ಈಗಾಗಲೇ ಒಂದು ಕಾಲ್‌ನಲ್ಲಿದ್ದೀರಿ.',
     callOver: 'ಈ ಕಾಲ್ ಈಗಾಗಲೇ ಮುಗಿದಿದೆ.',
   },
+  push: {
+    channelCalls: 'ಒಳಬರುವ ಕರೆಗಳು',
+    channelUpdates: 'ಅಪ್‌ಡೇಟ್‌ಗಳು',
+  },
 };

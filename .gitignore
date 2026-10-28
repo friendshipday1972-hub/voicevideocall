@@ -15,3 +15,6 @@ hima-style-app-build-spec.md
 
 # Build output
 .next/
+
+# Firebase server key (secret). mobile/google-services.json is public config and is committed.
+firebase-service-account*.json

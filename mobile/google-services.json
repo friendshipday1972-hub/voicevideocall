@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "921319218144",
+    "project_id": "friendship-4132a",
+    "storage_bucket": "friendship-4132a.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:921319218144:android:be3d995f162300cebfe985",
+        "android_client_info": {
+          "package_name": "app.baatein"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCAGPeCwoX6mFtHh3bNdeIbovJUzJups2k"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -584,4 +584,8 @@ export const ta: Dict = {
     alreadyInCall: 'நீங்கள் ஏற்கனவே ஒரு காலில் இருக்கிறீர்கள்.',
     callOver: 'இந்த கால் ஏற்கனவே முடிந்துவிட்டது.',
   },
+  push: {
+    channelCalls: 'வரும் அழைப்புகள்',
+    channelUpdates: 'அறிவிப்புகள்',
+  },
 };

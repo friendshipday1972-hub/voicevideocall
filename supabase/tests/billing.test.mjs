@@ -132,6 +132,23 @@ try {
   assert.equal((await asSystem('select state from call_sessions where id = $1', [sid4]))[0].state, 'missed');
   step('declined and unanswered (reaper) calls are recorded; nothing charged');
 
+  const presence = async () => (await asSystem('select presence from hosts where id = $1', [host]))[0].presence;
+  assert.equal(await presence(), 'online');
+  await as(host, `select register_device('fcm-test-token-0123456789', 'android')`);
+  await asSystem(`update hosts set last_seen = now() - interval '1 hour' where id = $1`, [host]);
+  await asSystem('select reap()');
+  assert.equal(await presence(), 'online');
+  const [{ start_call: sid6 }] = await as(caller, `select start_call($1, 'audio')`, [host]);
+  await as(caller, 'select cancel_call($1, true)', [sid6]);
+  assert.equal(await presence(), 'offline');
+  await as(host, `select set_presence('online')`);
+  await as(host, `select unregister_device('fcm-test-token-0123456789')`);
+  await asSystem(`update hosts set last_seen = now() - interval '5 minutes' where id = $1`, [host]);
+  await asSystem('select reap()');
+  assert.equal(await presence(), 'offline');
+  await as(host, `select set_presence('online')`);
+  step('with push alerts she stays online in the background; a missed call while away (or no alerts) takes her offline');
+
   await as(admin, `select admin_adjust_coins($1, -72, 'test')`, [caller]);
   const [{ start_call: sid5 }] = await as(caller, `select start_call($1, 'audio')`, [host]);
   await as(host, 'select accept_call($1)', [sid5]);

@@ -104,8 +104,12 @@ From the ui-ux-pro-max skill ("Vibrant & Block-based"): rose `#E11D48` primary, 
   3. Both phones send a heartbeat every 15 s, and the server charges each minute and ends the call when coins run out.
   4. If an update is missed, the app re-checks every few seconds.
 - **Voice and video:** `src/components/CallMedia.tsx` joins the Agora channel with a token from the `agora-token` Edge Function. It falls back to the visual-only call screen where the SDK isn't available (Expo Go).
+- **Push notifications:** `src/lib/push.ts` registers the phone's Firebase token after login and sets up two Android channels:
+  - `calls`: rings at full volume
+  - `updates`: approvals, payouts and missed calls
+
+  The server sends them (see `supabase/README.md`). Tapping a call alert opens the app on the incoming-call screen. Expo Go can't receive push; use the installed app.
 - **Server rules:** live in `supabase/migrations`. `src/lib/billing.ts` mirrors them for tests and the low-balance countdown.
 - **Still to come:**
   - coin purchases (Play Billing / App Store + server verification)
-  - Firebase push so calls ring when the app is closed
   - KYC provider checks (DigiLocker, PAN, bank/UPI)

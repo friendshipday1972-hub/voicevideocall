@@ -11,6 +11,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { ToastHost, toast } from '@/components/Toast';
 import { t } from '@/i18n';
 import { findRinging, watchIncoming } from '@/lib/calls';
+import { clearCallAlerts, registerPush } from '@/lib/push';
 import { supabase } from '@/lib/supabase';
 import { useHost } from '@/stores/host';
 import { useHosts } from '@/stores/hosts';
@@ -72,6 +73,7 @@ export default function RootLayout() {
   // Live data for whoever is signed in.
   useEffect(() => {
     if (!userId || !role) return;
+    registerPush();
     if (role === 'user') {
       const stopHosts = useHosts.getState().start();
       const stopWallet = useWallet.getState().start(userId);
@@ -101,10 +103,12 @@ export default function RootLayout() {
     const ping = setInterval(() => supabase.rpc('ping').then(() => {}), 60_000);
     // Safety net for a missed live event (flaky network): a cheap check for a ringing call.
     const poll = setInterval(() => AppState.currentState === 'active' && check(), 8000);
+    // Opening the app (or tapping a call notification) finds the ringing call; the shade ring is then redundant.
     const sub = AppState.addEventListener('change', (state) => {
       if (state === 'active') {
         supabase.rpc('ping').then(() => {});
         check();
+        clearCallAlerts();
       }
     });
     return () => {

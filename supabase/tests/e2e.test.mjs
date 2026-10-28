@@ -74,7 +74,10 @@ try {
   const { data: listed } = await caller.from('public_hosts').select('name, presence').eq('id', ids.host).single();
   assert.equal(listed.presence, 'online');
   await call(admin, 'admin_adjust_coins', { p_user: ids.caller, p_delta: 60, p_reason: 'e2e top-up' });
-  step('she goes online and appears to callers; admin adds 60 coins');
+  // A token FCM will reject. The push pipeline must reach Google and then forget the token.
+  const fakeToken = `e2e-not-a-real-fcm-token-${tag}`;
+  await call(host, 'register_device', { p_token: fakeToken, p_platform: 'android' });
+  step('she goes online and appears to callers; admin adds 60 coins; her phone registers for push');
 
   // Realtime: the host app listens for rings; the caller app follows its call.
   let onRing;
@@ -92,6 +95,15 @@ try {
   assert.equal(rung.id, sessionId);
   assert.equal(rung.state, 'ringing');
   step('caller rings: the host receives it over Realtime');
+
+  // Ring trigger -> pg_net -> push function -> Google auth -> FCM rejects the fake token -> token deleted.
+  for (let i = 0; ; i++) {
+    const { data: left } = await root.from('device_tokens').select('token').eq('token', fakeToken);
+    if (!left.length) break;
+    if (i === 30) throw new Error('push pipeline did not process the ring within 30s');
+    await new Promise((r) => setTimeout(r, 1000));
+  }
+  step('the ring goes out as a push through Firebase (FCM answered; the dead token was removed)');
 
   let onUpdate;
   let callChannel;

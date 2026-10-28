@@ -582,6 +582,10 @@ export const en = {
     alreadyInCall: 'You\'re already in a call.',
     callOver: 'This call has already ended.',
   },
+  push: {
+    channelCalls: 'Incoming calls',
+    channelUpdates: 'Updates',
+  },
 } as const;
 
 type Widen<T> = { [K in keyof T]: T[K] extends string ? string : Widen<T[K]> };

@@ -5,6 +5,7 @@ import { persist } from 'zustand/middleware';
 import { applyServerConfig, type ServerConfig } from '@/config/appConfig';
 import type { LanguageCode } from '@/data/catalog';
 import { detectLanguage } from '@/i18n/detect';
+import { unregisterPush } from '@/lib/push';
 import { rpc, supabase } from '@/lib/supabase';
 
 import { persistStorage } from './storage';
@@ -132,6 +133,7 @@ export const useSession = create<SessionState>()(
         await rpc('update_my_profile', { [arg]: value }).catch(() => {});
       },
       signOut: async () => {
+        await unregisterPush().catch(() => {});
         await supabase.auth.signOut().catch(() => {});
         set({ userId: null, phone: null, profile: null, blockedReason: null });
       },
