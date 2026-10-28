@@ -108,6 +108,13 @@ try {
   assert.equal(live.coins_charged, 6);
   step('she accepts: the caller sees the call go live in real time; minute 1 charged');
 
+  const media = await Promise.all([caller, host].map((c) => c.functions.invoke('agora-token', { body: { sessionId } })));
+  for (const { data, error } of media) assert.ok(!error && data.token && data.appId, `agora-token: ${error?.message ?? JSON.stringify(data)}`);
+  assert.deepEqual(media.map((m) => m.data.uid), [1, 2]);
+  const outsider = await admin.functions.invoke('agora-token', { body: { sessionId } });
+  assert.ok(outsider.error, 'a third person must not get a token');
+  step('both people in the call get an Agora token; nobody else does');
+
   await root.from('call_sessions').update({ started_at: new Date(Date.now() - 75_000).toISOString() }).eq('id', sessionId);
   const tick = await call(caller, 'call_tick', { p_session: sessionId });
   assert.equal(tick.billed_minutes, 2);
