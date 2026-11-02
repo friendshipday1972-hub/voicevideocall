@@ -1,29 +1,29 @@
 {
   "expo": {
-    "name": "Baatein",
+    "name": "Kuhoo",
     "slug": "friendship",
-    "version": "1.1.0",
+    "version": "1.2.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "baatein",
+    "scheme": "kuhoo",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./assets/expo.icon",
-      "bundleIdentifier": "app.baatein",
+      "icon": "./assets/images/icon.png",
+      "bundleIdentifier": "com.kuhoo.app",
       "infoPlist": {
-        "NSMicrophoneUsageDescription": "Baatein uses the microphone so you can talk during voice and video calls.",
-        "NSCameraUsageDescription": "Baatein uses the camera only during video calls you start or accept."
+        "NSMicrophoneUsageDescription": "Kuhoo uses the microphone so you can talk during voice and video calls.",
+        "NSCameraUsageDescription": "Kuhoo uses the camera only during video calls you start or accept."
       }
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#FFE4E6",
+        "backgroundColor": "#7F3BAD",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "app.baatein",
+      "package": "com.kuhoo.app",
       "permissions": [
         "android.permission.RECORD_AUDIO",
         "android.permission.CAMERA",
@@ -46,7 +46,7 @@
         {
           "backgroundColor": "#FFF1F2",
           "image": "./assets/images/splash-icon.png",
-          "imageWidth": 76,
+          "imageWidth": 120,
           "dark": {
             "backgroundColor": "#0B0710"
           }
@@ -60,8 +60,8 @@
       [
         "expo-notifications",
         {
-          "icon": "./assets/images/android-icon-monochrome.png",
-          "color": "#E11D48"
+          "icon": "./assets/images/notification-icon.png",
+          "color": "#6B4FDB"
         }
       ]
     ],

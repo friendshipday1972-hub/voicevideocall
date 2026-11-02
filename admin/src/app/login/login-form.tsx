@@ -1,6 +1,7 @@
 'use client';
 
 import { Eye, EyeOff, Loader2, Lock } from 'lucide-react';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState, type FormEvent } from 'react';
 
@@ -17,10 +18,10 @@ export function LoginScreen() {
   const t = useT();
   return (
     <main className="grid min-h-dvh lg:grid-cols-2">
-      <section className="relative hidden overflow-hidden bg-gradient-to-br from-rose-600 via-rose-500 to-violet-700 p-12 text-white lg:flex lg:flex-col lg:justify-between">
+      <section className="relative hidden overflow-hidden bg-gradient-to-br from-[#4B3BBF] to-[#B13A9A] p-12 text-white lg:flex lg:flex-col lg:justify-between">
         <div className="flex items-center gap-2.5">
-          <span className="grid size-9 place-items-center rounded-lg bg-white/20 font-display font-bold">B</span>
-          <span className="font-display text-lg font-semibold">Baatein {t('shell.admin')}</span>
+          <Image src="/kuhoo-mark.png" alt="" width={36} height={36} className="size-9" priority />
+          <span className="font-display text-lg font-semibold">Kuhoo {t('shell.admin')}</span>
         </div>
         <div className="max-w-md">
           <h1 className="font-display text-4xl font-semibold leading-tight">{t('login.tagline')}</h1>
@@ -32,8 +33,8 @@ export function LoginScreen() {
         <LanguageSwitch className="absolute right-4 top-4" />
         <div className="w-full max-w-sm">
           <div className="mb-8 flex items-center gap-2.5 lg:hidden">
-            <span className="grid size-9 place-items-center rounded-lg bg-gradient-to-br from-rose-500 to-violet-600 font-display font-bold text-white">B</span>
-            <span className="font-display text-lg font-semibold">Baatein {t('shell.admin')}</span>
+            <Image src="/kuhoo-mark.png" alt="" width={36} height={36} className="size-9" priority />
+            <span className="font-display text-lg font-semibold">Kuhoo {t('shell.admin')}</span>
           </div>
           <h2 className="font-display text-2xl font-semibold">{t('login.title')}</h2>
           <p className="mt-1 text-sm text-fg-2">{t('login.subtitle')}</p>

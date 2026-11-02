@@ -20,6 +20,7 @@ import {
   X,
   type LucideIcon,
 } from 'lucide-react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { Suspense, useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from 'react';
@@ -117,9 +118,9 @@ function Brand() {
   const t = useT();
   return (
     <Link href="/" className="flex items-center gap-2.5 px-3">
-      <span className="grid size-8 place-items-center rounded-lg bg-gradient-to-br from-rose-500 to-violet-600 font-display text-sm font-bold text-white">B</span>
+      <Image src="/kuhoo-mark.png" alt="" width={32} height={32} className="size-8" priority />
       <span className="font-display text-[15px] font-semibold">
-        Baatein <span className="font-normal text-fg-3">{t('shell.admin')}</span>
+        Kuhoo <span className="font-normal text-fg-3">{t('shell.admin')}</span>
       </span>
     </Link>
   );

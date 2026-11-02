@@ -19,6 +19,7 @@ import { hostEarningPerMinutePaise } from '@/lib/billing';
 import { fetchCall, watchCall, watchGifts, type LiveCall } from '@/lib/calls';
 import { formatDuration } from '@/lib/format';
 import { haptic } from '@/lib/haptics';
+import { usePrivateScreen } from '@/lib/privacy';
 import { rpc } from '@/lib/supabase';
 import { useHost } from '@/stores/host';
 import { fonts, radius, spacing, useTheme } from '@/theme';
@@ -27,6 +28,7 @@ const TICK_MS = 15_000;
 
 /** Host side of a call: timer, live earnings from the server, gifts as they arrive. */
 export default function HostCall() {
+  usePrivateScreen('host-call');
   const { colors } = useTheme();
   const t = useT();
   const insets = useSafeAreaInsets();

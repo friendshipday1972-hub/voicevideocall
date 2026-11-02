@@ -1,4 +1,4 @@
-# Baatein: third parties, costs and launch checklist
+# Kuhoo: third parties, costs and launch checklist
 
 Every outside service the app will use, what it costs, and which one to pick. After that: the legal, business, tax and Play Store work to finish before launch, as checklists.
 
@@ -153,7 +153,7 @@ About **₹10–25 per host** in total, paid once at sign-up.
 |---|---|---|
 | Sentry | App and website crash reports | Free tier |
 | PostHog | Funnels, retention, feature flags | Free up to 1M events/month |
-| Domain (e.g. `baatein.app`) | Website, legal pages, email | ~₹1,000–1,500/year |
+| Domain (e.g. `kuhoo.in` or `kuhoo.app`) | Website, legal pages, email | ~₹1,000–1,500/year |
 | Zoho Mail / Google Workspace | support@ and grievance@ email | Zoho free tier; Workspace ~₹136/user/month |
 | Resend | Emails (payout statements, admin alerts) | Free up to 3,000/month |
 
@@ -230,7 +230,7 @@ The app hosts user conversations, so it is an "intermediary".
 - [ ] **Current bank account** in the company's name (needed for payouts, gateways and Play payments).
 - [ ] **D-U-N-S number:** free, needed for **organisation** accounts on Google Play and Apple.
 - [ ] Udyam (MSME) registration: optional, free, gives some benefits.
-- [ ] **Trademark** for the app name (~₹4,500–9,000 per class). Check the name is free first; "Baatein" is a placeholder.
+- [ ] **Trademark** for the app name (~₹4,500–9,000 per class). The app name is **Kuhoo**; check it is free in class 9 (software) and class 38 (telecom) first.
 - [ ] Have a lawyer draft these documents:
   - [ ] Terms of Use
   - [ ] Privacy Policy

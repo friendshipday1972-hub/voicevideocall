@@ -11,7 +11,9 @@ if (!token) throw new Error('Add SUPABASE_ACCESS_TOKEN to .env');
 const ref = new URL(url).hostname.split('.')[0];
 
 // 10-digit Indian numbers for testers, all with the same code. Override with TEST_PHONES="9000000001,9000000002".
-const phones = (process.env.TEST_PHONES ?? '9000000001,9000000002,9000000003,9000000004,9000000005,9000000006').split(',').map((p) => p.trim()).filter(Boolean);
+// BEFORE LAUNCH set TEST_PHONES=none and re-run: anyone who knows a test number and code can log in as it.
+const phones = (process.env.TEST_PHONES ?? '9000000001,9000000002,9000000003,9000000004,9000000005,9000000006')
+  .split(',').map((p) => p.trim()).filter((p) => p && p !== 'none');
 const code = process.env.TEST_OTP ?? '123456';
 const validUntil = new Date(Date.now() + 365 * 86_400_000).toISOString();
 
@@ -22,6 +24,13 @@ const body = {
   sms_otp_length: 6,
   sms_test_otp: phones.map((p) => `91${p.replace(/\D/g, '').slice(-10)}=${code}`).join(','),
   sms_test_otp_valid_until: validUntil,
+  // At most one code per number per minute (stops bots running up the SMS bill).
+  sms_max_frequency: 60,
+  // The admin login: long passwords with letters and digits, never a known-leaked one.
+  password_min_length: 10,
+  password_required_characters: 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ:0123456789',
+  // Leaked-password check (HaveIBeenPwned) needs the Pro plan: set SUPABASE_PLAN=pro in .env after upgrading.
+  ...(process.env.SUPABASE_PLAN === 'pro' ? { password_hibp_enabled: true } : {}),
   // A provider must be named for phone login to be on. Test numbers never reach it.
   sms_provider: 'twilio',
   sms_twilio_account_sid: process.env.TWILIO_ACCOUNT_SID ?? 'AC00000000000000000000000000000000',
@@ -35,4 +44,4 @@ const res = await fetch(`https://api.supabase.com/v1/projects/${ref}/config/auth
   body: JSON.stringify(body),
 });
 if (!res.ok) throw new Error(`Supabase answered ${res.status}: ${await res.text()}`);
-console.log(`Phone login is on. Test numbers (code ${code}): ${phones.map((p) => `+91 ${p}`).join(', ')}`);
+console.log(phones.length ? `Phone login is on. Test numbers (code ${code}): ${phones.map((p) => `+91 ${p}`).join(', ')}` : 'Phone login is on. Test numbers are off.');

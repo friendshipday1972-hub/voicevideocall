@@ -297,7 +297,7 @@ export const bn: Dict = {
     deleteAccount: 'অ্যাকাউন্ট মুছুন',
     logoutTitle: 'লগ আউট করবেন?',
     logoutBody: 'আপনার ফোন নম্বর দিয়ে আবার লগইন করতে পারবেন। এই ফোনের ডেমো ডেটা মুছে যাবে।',
-    version: '{app} · v1.0.0 প্রোটোটাইপ',
+    version: '{app} · v{version}',
     favOnlineToast: '{name} এখন অনলাইন। ব্যস্ত হওয়ার আগে কল করুন!',
   },
   editProfile: {
@@ -540,7 +540,7 @@ export const bn: Dict = {
     rulesRow: 'হোস্টের নিয়ম ও নিরাপত্তা',
     rulesRowSub: 'কী অনুমোদিত, সতর্কতা আর স্ট্রাইক',
     logoutBody: 'আবার লগইন না করা পর্যন্ত আপনার কাছে কল আসবে না।',
-    version: '{app} হোস্ট · v1.0.0 প্রোটোটাইপ',
+    version: '{app} হোস্ট · v{version}',
   },
   incoming: {
     callerNoCoins: 'কলারের কয়েন শেষ, তাই কল শুরু হয়নি।',
@@ -583,6 +583,7 @@ export const bn: Dict = {
     generic: 'কিছু একটা ভুল হয়েছে। আবার চেষ্টা করুন।',
     alreadyInCall: 'আপনি ইতিমধ্যে একটি কলে আছেন।',
     callOver: 'এই কলটি আগেই শেষ হয়ে গেছে।',
+    tooManyCalls: 'অল্প সময়ে অনেক বেশি কল। কয়েক মিনিট অপেক্ষা করে আবার চেষ্টা করুন।',
   },
   push: {
     channelCalls: 'ইনকামিং কল',

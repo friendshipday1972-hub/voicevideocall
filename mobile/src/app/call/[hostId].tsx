@@ -27,6 +27,7 @@ import { secondsUntilCutoff, type BillingSession, type CallEndReason } from '@/l
 import { callErrorText, fetchCall, watchCall, type LiveCall } from '@/lib/calls';
 import { formatDuration } from '@/lib/format';
 import { haptic } from '@/lib/haptics';
+import { usePrivateScreen } from '@/lib/privacy';
 import { errorCode, rpc } from '@/lib/supabase';
 import { useHostById } from '@/stores/hosts';
 import { useSession } from '@/stores/session';
@@ -47,6 +48,7 @@ const TICK_MS = 15_000;
  * run out. This screen follows the call live and shows it.
  */
 export default function CallScreen() {
+  usePrivateScreen('caller-call');
   const { colors } = useTheme();
   const t = useT();
   const insets = useSafeAreaInsets();

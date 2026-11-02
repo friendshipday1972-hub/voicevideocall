@@ -9,8 +9,8 @@ const grotesk = Space_Grotesk({ variable: '--font-grotesk', subsets: ['latin'], 
 const telugu = Noto_Sans_Telugu({ variable: '--font-telugu', subsets: ['telugu'], weight: ['400', '500', '600', '700'], preload: false });
 
 export const metadata: Metadata = {
-  title: { default: 'Baatein Admin', template: '%s · Baatein Admin' },
-  description: 'Operations, safety and analytics for the Baatein calling app.',
+  title: { default: 'Kuhoo Admin', template: '%s · Kuhoo Admin' },
+  description: 'Operations, safety and analytics for the Kuhoo calling app.',
   robots: { index: false, follow: false },
 };
 

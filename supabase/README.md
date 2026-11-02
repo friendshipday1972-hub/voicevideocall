@@ -1,4 +1,4 @@
-# Baatein backend (Supabase)
+# Kuhoo backend (Supabase)
 
 Postgres, Auth, Realtime and one Edge Function. Both apps talk to it directly. Row level security decides what each signed-in person can read, and every change that involves money, calls or moderation goes through a database function.
 
@@ -17,8 +17,9 @@ Install once: `cd supabase && npm install`. Every script reads the root `.env`.
 | Command | What it does |
 |---|---|
 | `npm run migrate` | Applies new migrations (`supabase db push`) |
-| `npm run test:db` | Billing, calls, payouts and moderation rules (19 checks, nothing saved) |
+| `npm run test:db` | Billing, calls, payouts and moderation rules (20 checks, nothing saved) |
 | `npm run test:e2e` | Two apps and an admin end to end over the live project (11 checks, cleans up) |
+| `npm run test:security` | Attacks the live project as a stranger, an email-only sign-up and a caller (7 checks, cleans up) |
 | `npm run configure-auth` | Turns on phone login with test numbers (needs `SUPABASE_ACCESS_TOKEN`) |
 | `npm run create-admin` | Creates or resets the dashboard login from `ADMIN_EMAIL` / `ADMIN_PASSWORD` |
 | `npm run setup-push` | Connects push notifications: Firebase key to the `push` function, its address to Vault, deploys it |
@@ -57,3 +58,32 @@ npx supabase functions deploy agora-token --project-ref <ref>
 ```
 
 Both need `SUPABASE_ACCESS_TOKEN` in the environment.
+
+## Security rules
+
+Migration `000007_hardening` sets these. Keep them when adding features.
+
+- **Deny by default.**
+  - Signed-out visitors can't read or call anything.
+  - Signed-in people get `SELECT` (filtered by row level security) and `EXECUTE` on the app's functions only.
+  - New tables and functions get no access until a migration grants it. Grant each new app-facing function to `authenticated` explicitly. Prefix internal helpers with `_`.
+- **Members only.** Host lists, reviews and stats are visible only to an active caller or host whose profile was created after a phone login (`is_member()`). Email-only sign-ups can't create a profile, so they get no welcome coins and no data.
+- **Views run as their owner on purpose.** This lets callers see a host's public name without reading `profiles`. Each view filters to what the viewer may see. Supabase's advisor flags them; that is expected.
+- **Input limits.**
+  - Names: 30 characters.
+  - Bio: 300 characters.
+  - City: 60 characters.
+  - Languages and keys: from fixed lists.
+  - Review tags: 8 at most.
+- **Rate limits.**
+  - Calls: 5 in 2 minutes, and 3 unanswered calls to one host in 10 minutes.
+  - Reports: 20 a day, and only about a call between the two people.
+- **Auth** (`configure-auth`):
+  - one SMS code per number per minute
+  - admin passwords of 10+ characters with letters and digits
+  - leaked-password check once on the Pro plan (`SUPABASE_PLAN=pro`)
+- **Before launch:**
+  - Run `TEST_PHONES=none npm run configure-auth` to switch off the test numbers.
+  - Add a captcha to phone login before real SMS goes live.
+  - Turn on two-factor login for the admin.
+

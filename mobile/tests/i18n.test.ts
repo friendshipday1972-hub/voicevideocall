@@ -40,7 +40,9 @@ for (const [code, dict] of Object.entries(locales)) {
   });
 
   test(`${code}: is actually translated (not an English copy)`, () => {
-    const same = Object.entries(source).filter(([k, v]) => v.length > 12 && flat[k] === v);
+    // Pure formats like '{app} · v{version}' have no words to translate.
+    const hasWords = (s: string) => /\p{L}{2,}/u.test(s.replace(/\{\w+\}/g, ''));
+    const same = Object.entries(source).filter(([k, v]) => v.length > 12 && hasWords(v) && flat[k] === v);
     assert.equal(same.length, 0, same.map(([k]) => k).join(', '));
   });
 

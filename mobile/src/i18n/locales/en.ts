@@ -295,7 +295,7 @@ export const en = {
     deleteAccount: 'Delete account',
     logoutTitle: 'Log out?',
     logoutBody: 'You can log back in with your phone number. Demo data on this phone is cleared.',
-    version: '{app} · v1.0.0 prototype',
+    version: '{app} · v{version}',
     favOnlineToast: '{name} is online now. Call before she gets busy!',
   },
   editProfile: {
@@ -538,7 +538,7 @@ export const en = {
     rulesRow: 'Host rules & safety',
     rulesRowSub: 'What’s allowed, warnings and strikes',
     logoutBody: 'You’ll stop receiving calls until you log back in.',
-    version: '{app} Host · v1.0.0 prototype',
+    version: '{app} Host · v{version}',
   },
   incoming: {
     callerNoCoins: 'The caller ran out of coins, so the call couldn\'t start.',
@@ -581,6 +581,7 @@ export const en = {
     generic: 'Something went wrong. Please try again.',
     alreadyInCall: 'You\'re already in a call.',
     callOver: 'This call has already ended.',
+    tooManyCalls: 'Too many calls in a short time. Please wait a few minutes and try again.',
   },
   push: {
     channelCalls: 'Incoming calls',

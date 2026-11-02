@@ -140,6 +140,8 @@ export function callErrorText(t: Translate, code: string, hostName = ''): string
       return t('errors.alreadyInCall');
     case 'call_over':
       return t('errors.callOver');
+    case 'too_many_calls':
+      return t('errors.tooManyCalls');
     case 'network':
       return t('errors.network');
     default:

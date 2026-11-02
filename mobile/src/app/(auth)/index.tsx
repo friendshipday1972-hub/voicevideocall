@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useEffect } from 'react';
@@ -14,7 +15,7 @@ import { APP_NAME } from '@/config/appConfig';
 import { LANGUAGES } from '@/data/catalog';
 import { useT } from '@/i18n';
 import { useSession } from '@/stores/session';
-import { radius, spacing, useTheme } from '@/theme';
+import { spacing, useTheme } from '@/theme';
 
 function FloatingBubble({ icon, size, top, left, delay, colors }: { icon: 'call' | 'videocam' | 'heart' | 'chatbubbles'; size: number; top: `${number}%`; left: `${number}%`; delay: number; colors: readonly [string, string] }) {
   const t = useSharedValue(0);
@@ -46,9 +47,7 @@ export default function Welcome() {
         <FloatingBubble icon="chatbubbles" size={48} top="52%" left="74%" delay={800} colors={['#FBBF24', '#F97316']} />
         <FloatingBubble icon="heart" size={44} top="56%" left="20%" delay={1200} colors={['#F472B6', '#DB2777']} />
         <Animated.View entering={FadeInDown.duration(500)} style={styles.brand}>
-          <LinearGradient colors={colors.gradientPrimary} style={styles.logo}>
-            <Ionicons name="chatbubble-ellipses" size={34} color="#fff" />
-          </LinearGradient>
+          <Image source={require('../../../assets/images/kuhoo-mark.png')} style={styles.logo} contentFit="contain" accessibilityIgnoresInvertColors accessible={false} />
           <AppText variant="display">{APP_NAME}</AppText>
           <AppText color="textSecondary" align="center">
             {t('welcome.tagline')}
@@ -87,7 +86,7 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   hero: { flex: 1, minHeight: 300, alignItems: 'center', justifyContent: 'flex-end', paddingBottom: spacing.xl, overflow: 'hidden' },
   brand: { alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.xl, maxWidth: 420 },
-  logo: { width: 72, height: 72, borderRadius: radius.xl, alignItems: 'center', justifyContent: 'center', marginBottom: spacing.sm },
+  logo: { width: 88, height: 88, marginBottom: spacing.sm },
   panel: { width: '100%', maxWidth: MAX_WIDTH, alignSelf: 'center', paddingHorizontal: spacing.lg, paddingTop: spacing.xl, gap: spacing.lg },
   langs: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   trust: { flexDirection: 'row', justifyContent: 'space-between', flexWrap: 'wrap', gap: spacing.sm },

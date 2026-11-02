@@ -1,8 +1,8 @@
-# Baatein: mobile app
+# Kuhoo: mobile app
 
 Paid 1-on-1 voice and video calling app. It runs on the live Supabase backend: real logins, real people, coins and earnings kept in the database, calls rung and billed in real time. Callers get welcome coins, and buying coins comes with the payments stage.
 
-> `Baatein` is a placeholder brand. Change it in `src/config/appConfig.ts` (`APP_NAME`) and `app.json`.
+> The name lives in `src/config/appConfig.ts` (`APP_NAME`) and `app.json`. The Android package is `com.kuhoo.app`; it can't change once the app is on the Play Store. Logo source files are in `assets/logo/`.
 
 ## Run it
 

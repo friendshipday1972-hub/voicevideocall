@@ -8,7 +8,7 @@ import { AppText } from '@/components/AppText';
 import { UserAvatar } from '@/components/Avatar';
 import { Card, Divider, ListRow, Screen, SectionTitle } from '@/components/Layout';
 import { PressableScale } from '@/components/PressableScale';
-import { APP_NAME } from '@/config/appConfig';
+import { APP_NAME, APP_VERSION } from '@/config/appConfig';
 
 import { LanguageSheet } from '@/components/LanguageSheet';
 import { LANGUAGES } from '@/data/catalog';
@@ -125,7 +125,7 @@ export default function Profile() {
       </View>
 
       <AppText variant="caption" color="textMuted" align="center" style={{ marginTop: spacing.xl }}>
-        {t('profile.version', { app: APP_NAME })}
+        {t('profile.version', { app: APP_NAME, version: APP_VERSION })}
       </AppText>
       <LanguageSheet visible={langOpen} onClose={() => setLangOpen(false)} />
       </Screen>

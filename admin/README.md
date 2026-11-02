@@ -1,6 +1,6 @@
-# Baatein Admin
+# Kuhoo Admin
 
-Web dashboard for running the Baatein calling app: analytics, callers, hosts, KYC approvals, calls, payments and payouts, reviews, reports and moderation, Spotlight rankings, an audit log, and app settings.
+Web dashboard for running the Kuhoo calling app: analytics, callers, hosts, KYC approvals, calls, payments and payouts, reviews, reports and moderation, Spotlight rankings, an audit log, and app settings.
 
 ## Run it
 

@@ -16,6 +16,7 @@ import { t as tNow, useT } from '@/i18n';
 import { languageName } from '@/i18n/labels';
 import { signOutAndReset } from '@/lib/account';
 import { haptic } from '@/lib/haptics';
+import { usePrivateScreen } from '@/lib/privacy';
 import { useBackHandler } from '@/lib/useBackHandler';
 import { useHost } from '@/stores/host';
 import { useSession } from '@/stores/session';
@@ -117,7 +118,8 @@ const t = useT();
 }
 
 export default function HostKyc() {
-const { colors } = useTheme();
+  usePrivateScreen('host-kyc');
+  const { colors } = useTheme();
 const t = useT();
   const status = useHost((s) => s.status);
   const decisionNote = useHost((s) => s.decisionNote);

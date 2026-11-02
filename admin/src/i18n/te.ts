@@ -285,7 +285,7 @@ export const te: Dict = {
   },
   overview: {
     title: 'మొత్తం సారాంశం',
-    description: 'Baatein లో జరుగుతున్నదంతా · {date}',
+    description: 'Kuhoo లో జరుగుతున్నదంతా · {date}',
     hostsOnline: '{n} హోస్ట్‌లు ఆన్‌లైన్',
     attention: 'మీరు చూడాల్సినవి',
     seriousReports: 'తీవ్రమైన రిపోర్ట్స్',

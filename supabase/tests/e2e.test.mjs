@@ -15,14 +15,16 @@ if (!url || !publishable || !service) throw new Error('Supabase URL, publishable
 const root = createClient(url, service, { auth: { persistSession: false } });
 const tag = randomUUID().slice(0, 8);
 const password = `E2e-${randomUUID()}`;
-const people = { caller: `e2e-caller-${tag}@example.com`, host: `e2e-host-${tag}@example.com`, admin: `e2e-admin-${tag}@example.com` };
+// Caller and host log in by phone like the app (only phone-verified people become members); the admin by email.
+const digits = () => String(Math.floor(Math.random() * 1e8)).padStart(8, '0');
+const people = { caller: { phone: `9155${digits()}` }, host: { phone: `9155${digits()}` }, admin: { email: `e2e-admin-${tag}@example.com` } };
 const ids = {};
 let passed = 0;
 const step = (name) => console.log(`ok ${++passed} - ${name}`);
 
-async function signedIn(email) {
+async function signedIn(login) {
   const client = createClient(url, publishable, { auth: { persistSession: false } });
-  const { error } = await client.auth.signInWithPassword({ email, password });
+  const { error } = await client.auth.signInWithPassword({ ...login, password });
   if (error) throw error;
   return client;
 }
@@ -42,12 +44,12 @@ function waitFor(label, register, ms = 10_000) {
 }
 
 try {
-  for (const [role, email] of Object.entries(people)) {
-    const { data, error } = await root.auth.admin.createUser({ email, password, email_confirm: true });
+  for (const [role, login] of Object.entries(people)) {
+    const { data, error } = await root.auth.admin.createUser({ ...login, password, email_confirm: !!login.email, phone_confirm: !!login.phone });
     if (error) throw error;
     ids[role] = data.user.id;
   }
-  const { error: adminErr } = await root.from('profiles').insert({ id: ids.admin, role: 'admin', display_name: 'E2E Admin', email: people.admin });
+  const { error: adminErr } = await root.from('profiles').insert({ id: ids.admin, role: 'admin', display_name: 'E2E Admin', email: people.admin.email });
   if (adminErr) throw adminErr;
   const caller = await signedIn(people.caller);
   const host = await signedIn(people.host);
@@ -146,7 +148,7 @@ try {
   step('her earnings (₹7.64 pending) and the rated call show in her app');
 
   const { data: audit } = await admin.from('audit_log').select('action, actor_email').in('target_id', [ids.host, ids.caller]);
-  assert.ok(audit.some((a) => a.action === 'kycApproved' && a.actor_email === people.admin));
+  assert.ok(audit.some((a) => a.action === 'kycApproved' && a.actor_email === people.admin.email));
   assert.ok(audit.some((a) => a.action === 'coinsAdded'));
   const { data: callerAudit } = await caller.from('audit_log').select('id');
   assert.equal(callerAudit.length, 0);

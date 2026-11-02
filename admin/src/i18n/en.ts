@@ -285,7 +285,7 @@ export const en = {
   },
   overview: {
     title: 'Overview',
-    description: 'Everything happening on Baatein · {date}',
+    description: 'Everything happening on Kuhoo · {date}',
     hostsOnline: '{n} hosts online',
     attention: 'Needs your attention',
     seriousReports: 'Serious reports open',

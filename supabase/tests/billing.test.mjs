@@ -44,7 +44,7 @@ const balance = async () => Number((await asSystem('select coin_balance from wal
 
 await db.query('begin');
 try {
-  await asSystem(`insert into auth.users (id, phone, aud, role) values ($1, '919000000101', 'authenticated', 'authenticated'), ($2, '919000000102', 'authenticated', 'authenticated'), ($3, null, 'authenticated', 'authenticated')`, [caller, host, admin]);
+  await asSystem(`insert into auth.users (id, phone, phone_confirmed_at, aud, role) values ($1, '919000000101', now(), 'authenticated', 'authenticated'), ($2, '919000000102', now(), 'authenticated', 'authenticated'), ($3, null, null, 'authenticated', 'authenticated')`, [caller, host, admin]);
   await asSystem(`insert into profiles (id, role, display_name, email) values ($1, 'admin', 'Admin', 'test-admin@example.com')`, [admin]);
 
   await as(caller, `select complete_profile('Ravi', 'male', '1998-01-01', 'moon', '{te,en}', 'te', 'v1')`);
@@ -148,6 +148,11 @@ try {
   assert.equal(await presence(), 'offline');
   await as(host, `select set_presence('online')`);
   step('with push alerts she stays online in the background; a missed call while away (or no alerts) takes her offline');
+
+  // Everything above happened "at once" inside this transaction; the spam limit sees 5 calls in 2 minutes.
+  await expectError(as(caller, `select start_call($1, 'audio')`, [host]), 'too_many_calls');
+  await asSystem(`update call_sessions set created_at = created_at - interval '1 hour' where caller_id = $1`, [caller]);
+  step('ring-and-hang-up spam is limited (5 calls in 2 minutes, 3 unanswered to one host in 10)');
 
   await as(admin, `select admin_adjust_coins($1, -72, 'test')`, [caller]);
   const [{ start_call: sid5 }] = await as(caller, `select start_call($1, 'audio')`, [host]);

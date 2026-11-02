@@ -8,7 +8,7 @@ import { createClient } from '@supabase/supabase-js';
  * functions that check the role and write the audit log. No service key ever reaches the browser.
  */
 export const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL ?? 'http://localhost', process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? 'missing', {
-  auth: { persistSession: true, autoRefreshToken: true, storageKey: 'baatein-admin-auth' },
+  auth: { persistSession: true, autoRefreshToken: true, storageKey: 'kuhoo-admin-auth' },
 });
 
 /** Calls a database function and throws its short error code (e.g. 'not_admin') on failure. */

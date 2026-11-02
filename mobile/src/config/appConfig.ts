@@ -1,9 +1,12 @@
+import Constants from 'expo-constants';
+
 /**
  * Mirrors the server-side `app_config` table (spec §8). These are the defaults until
  * `loadServerConfig` replaces them with the values admins set in the dashboard.
  */
 
-export const APP_NAME = 'Baatein';
+export const APP_NAME = 'Kuhoo';
+export const APP_VERSION = Constants.expoConfig?.version ?? '';
 
 export const appConfig = {
   coinValuePaise: 75, // ₹0.75 per coin, base value used for host earnings

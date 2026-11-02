@@ -297,7 +297,7 @@ export const kn: Dict = {
     deleteAccount: 'ಖಾತೆ ಅಳಿಸಿ',
     logoutTitle: 'ಲಾಗ್ ಔಟ್ ಮಾಡಬೇಕೆ?',
     logoutBody: 'ನಿಮ್ಮ ಫೋನ್ ನಂಬರ್‌ನಿಂದ ಮತ್ತೆ ಲಾಗಿನ್ ಆಗಬಹುದು. ಈ ಫೋನ್‌ನ ಡೆಮೋ ಡೇಟಾ ಅಳಿಸಲಾಗುತ್ತದೆ.',
-    version: '{app} · v1.0.0 ಮಾದರಿ',
+    version: '{app} · v{version}',
     favOnlineToast: '{name} ಈಗ ಆನ್‌ಲೈನ್‌ನಲ್ಲಿದ್ದಾರೆ. ಬ್ಯುಸಿ ಆಗುವ ಮೊದಲು ಕಾಲ್ ಮಾಡಿ!',
   },
   editProfile: {
@@ -540,7 +540,7 @@ export const kn: Dict = {
     rulesRow: 'ಹೋಸ್ಟ್ ನಿಯಮಗಳು & ಸುರಕ್ಷತೆ',
     rulesRowSub: 'ಏನಕ್ಕೆ ಅನುಮತಿ, ಎಚ್ಚರಿಕೆಗಳು ಮತ್ತು ಸ್ಟ್ರೈಕ್‌ಗಳು',
     logoutBody: 'ಮತ್ತೆ ಲಾಗಿನ್ ಆಗುವವರೆಗೆ ನಿಮಗೆ ಕಾಲ್ ಬರುವುದಿಲ್ಲ.',
-    version: '{app} ಹೋಸ್ಟ್ · v1.0.0 ಮಾದರಿ',
+    version: '{app} ಹೋಸ್ಟ್ · v{version}',
   },
   incoming: {
     callerNoCoins: 'ಕಾಲರ್ ಬಳಿ ಕಾಯಿನ್ಸ್ ಮುಗಿದಿವೆ, ಹಾಗಾಗಿ ಕಾಲ್ ಶುರುವಾಗಲಿಲ್ಲ.',
@@ -583,6 +583,7 @@ export const kn: Dict = {
     generic: 'ಏನೋ ತಪ್ಪಾಗಿದೆ. ದಯವಿಟ್ಟು ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ.',
     alreadyInCall: 'ನೀವು ಈಗಾಗಲೇ ಒಂದು ಕಾಲ್‌ನಲ್ಲಿದ್ದೀರಿ.',
     callOver: 'ಈ ಕಾಲ್ ಈಗಾಗಲೇ ಮುಗಿದಿದೆ.',
+    tooManyCalls: 'ಕಡಿಮೆ ಸಮಯದಲ್ಲಿ ತುಂಬಾ ಕರೆಗಳು. ದಯವಿಟ್ಟು ಕೆಲವು ನಿಮಿಷ ಕಾದು ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ.',
   },
   push: {
     channelCalls: 'ಒಳಬರುವ ಕರೆಗಳು',

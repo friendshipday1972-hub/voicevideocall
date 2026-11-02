@@ -297,7 +297,7 @@ export const mr: Dict = {
     deleteAccount: 'खाते हटवा',
     logoutTitle: 'लॉग आउट करायचे?',
     logoutBody: 'तुमच्या फोन नंबरने पुन्हा लॉगिन करू शकता. या फोनवरील डेमो डेटा पुसला जाईल.',
-    version: '{app} · v1.0.0 प्रोटोटाइप',
+    version: '{app} · v{version}',
     favOnlineToast: '{name} आता ऑनलाइन आहेत. व्यस्त होण्याआधी कॉल करा!',
   },
   editProfile: {
@@ -540,7 +540,7 @@ export const mr: Dict = {
     rulesRow: 'होस्टचे नियम आणि सुरक्षा',
     rulesRowSub: 'काय चालते, इशारे आणि स्ट्राइक',
     logoutBody: 'पुन्हा लॉगिन करेपर्यंत तुम्हाला कॉल येणार नाहीत.',
-    version: '{app} होस्ट · v1.0.0 प्रोटोटाइप',
+    version: '{app} होस्ट · v{version}',
   },
   incoming: {
     callerNoCoins: 'कॉलरचे कॉइन्स संपले, त्यामुळे कॉल सुरू झाला नाही.',
@@ -583,6 +583,7 @@ export const mr: Dict = {
     generic: 'काहीतरी चुकलं. कृपया पुन्हा प्रयत्न करा.',
     alreadyInCall: 'तुम्ही आधीच एका कॉलवर आहात.',
     callOver: 'हा कॉल आधीच संपला आहे.',
+    tooManyCalls: 'कमी वेळात खूप जास्त कॉल. कृपया काही मिनिटे थांबून पुन्हा प्रयत्न करा.',
   },
   push: {
     channelCalls: 'येणारे कॉल',

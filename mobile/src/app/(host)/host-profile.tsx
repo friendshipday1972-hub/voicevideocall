@@ -11,7 +11,7 @@ import { Chip } from '@/components/Chip';
 import { CoinIcon } from '@/components/CoinBadge';
 import { LanguageSheet } from '@/components/LanguageSheet';
 import { Card, Divider, ListRow, Screen, SectionTitle } from '@/components/Layout';
-import { APP_NAME, appConfig, levelRequirements } from '@/config/appConfig';
+import { APP_NAME, APP_VERSION, appConfig, levelRequirements } from '@/config/appConfig';
 import { LANGUAGES } from '@/data/catalog';
 import { useT } from '@/i18n';
 import { languageName } from '@/i18n/labels';
@@ -140,7 +140,7 @@ export default function HostProfile() {
       </View>
 
       <AppText variant="caption" color="textMuted" align="center" style={{ marginTop: spacing.xl }}>
-        {t('hostProfileTab.version', { app: APP_NAME })}
+        {t('hostProfileTab.version', { app: APP_NAME, version: APP_VERSION })}
       </AppText>
       <LanguageSheet visible={langOpen} onClose={() => setLangOpen(false)} />
       </Screen>

@@ -29,8 +29,7 @@ const account = JSON.parse(atob(Deno.env.get('FCM_SERVICE_ACCOUNT') ?? 'e30=')) 
 
 Deno.serve(async (req) => {
   const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
-  const secret = Deno.env.get('PUSH_SECRET');
-  if (!secret || req.headers.get('x-push-secret') !== secret) return json({ error: 'not_allowed' }, 401);
+  if (!sameSecret(req.headers.get('x-push-secret'), Deno.env.get('PUSH_SECRET'))) return json({ error: 'not_allowed' }, 401);
   if (!account.private_key) return json({ error: 'fcm_not_configured' }, 500);
 
   const message = await build(await req.json());
@@ -48,6 +47,14 @@ Deno.serve(async (req) => {
   }
   return json({ sent });
 });
+
+// Constant-time comparison, so response timing reveals nothing about the secret.
+function sameSecret(given: string | null, expected: string | undefined): boolean {
+  if (!given || !expected || given.length !== expected.length) return false;
+  let diff = 0;
+  for (let i = 0; i < expected.length; i++) diff |= given.charCodeAt(i) ^ expected.charCodeAt(i);
+  return diff === 0;
+}
 
 async function build(p: Payload): Promise<Message | null> {
   if (p.kind === 'call' || p.kind === 'missed') {
